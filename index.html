@@ -535,6 +535,185 @@
       render();
     }
 
+    function showBulkImportModal() {
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">📋 Bulk Import Ingredients</h2>
+          <p class="mb-4">Paste your ingredient list below. The app will automatically parse quantities, units, and names.</p>
+          
+          <div class="mb-4 p-3 bg-blue-50 rounded">
+            <p class="font-semibold mb-2">Supported Formats:</p>
+            <ul class="text-sm space-y-1">
+              <li>• "1 lb Boneless lamb stew meat"</li>
+              <li>• "2 Tbsp Finely chopped fresh ginger"</li>
+              <li>• "1/2 tsp Cayenne"</li>
+              <li>• "1 14.5-oz can Crushed tomatoes"</li>
+              <li>• "Chopped fresh cilantro (Optional)"</li>
+            </ul>
+          </div>
+
+          <textarea id="bulkIngredientInput" 
+            class="w-full p-3 border rounded" 
+            rows="12"
+            placeholder="Paste ingredients here...
+1 lb Boneless lamb stew meat
+1 tsp Kosher salt
+1 tsp Ground coriander
+..."
+            style="font-family: monospace; font-size: 14px;"></textarea>
+          
+          <div class="flex gap-2 justify-end mt-4">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Cancel
+            </button>
+            <button onclick="processBulkIngredients()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              Import Ingredients
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    function processBulkIngredients() {
+      const textarea = document.getElementById('bulkIngredientInput');
+      const text = textarea.value.trim();
+      
+      if (!text) {
+        showError('Please paste some ingredients first');
+        return;
+      }
+
+      const lines = text.split('\n').filter(line => line.trim());
+      const parsedIngredients = [];
+
+      lines.forEach(line => {
+        const parsed = parseIngredientLine(line);
+        if (parsed.name) {
+          parsedIngredients.push(parsed);
+        }
+      });
+
+      if (parsedIngredients.length === 0) {
+        showError('No valid ingredients found');
+        return;
+      }
+
+      // Add to recipe form
+      ensureRecipeForm();
+      state.recipeForm.ingredientsRows = parsedIngredients;
+      
+      closeModal();
+      render();
+      showToast(`Imported ${parsedIngredients.length} ingredients!`, 'success');
+    }
+
+    function parseIngredientLine(line) {
+      line = line.trim();
+      
+      // Remove leading bullet points or dashes
+      line = line.replace(/^[•\-\*]\s*/, '');
+      
+      // Common units to look for
+      const units = [
+        'lb', 'lbs', 'pound', 'pounds',
+        'oz', 'ounce', 'ounces',
+        'g', 'gram', 'grams',
+        'kg', 'kilogram', 'kilograms',
+        'tsp', 'teaspoon', 'teaspoons',
+        'tbsp', 'tablespoon', 'tablespoons',
+        'cup', 'cups',
+        'ml', 'milliliter', 'milliliters',
+        'l', 'liter', 'liters',
+        'can', 'cans',
+        'piece', 'pieces',
+        'slice', 'slices',
+        'clove', 'cloves',
+        'inch', 'inches'
+      ];
+
+      // Try to match: quantity unit name
+      // Examples: "1 lb Boneless lamb", "2 Tbsp Fresh ginger", "1/2 tsp Cayenne"
+      const regex = /^([\d\/\.\s]+)?\s*([a-zA-Z\-]+)?\s*(.+)$/;
+      const match = line.match(regex);
+
+      if (!match) {
+        return { qty: '', unit: '', name: line, group: 'Other' };
+      }
+
+      let [, quantity, possibleUnit, rest] = match;
+      quantity = (quantity || '').trim();
+      possibleUnit = (possibleUnit || '').toLowerCase().trim();
+      rest = (rest || '').trim();
+
+      let unit = '';
+      let name = rest;
+
+      // Check if possibleUnit is actually a unit
+      if (possibleUnit && units.includes(possibleUnit)) {
+        unit = possibleUnit;
+      } else if (possibleUnit) {
+        // It's not a unit, it's part of the name
+        name = possibleUnit + ' ' + rest;
+      }
+
+      // Clean up name - remove parenthetical notes like (Optional), (from a 2-inch piece)
+      const cleanName = name.replace(/\([^)]*\)$/g, '').trim();
+      
+      // Remove trailing commas and clean up
+      const finalName = cleanName.replace(/,\s*$/, '').trim();
+
+      // Auto-detect ingredient group
+      const group = detectIngredientGroup(finalName);
+
+      return {
+        qty: quantity,
+        unit: unit,
+        name: finalName,
+        group: group
+      };
+    }
+
+    function detectIngredientGroup(name) {
+      const nameLower = name.toLowerCase();
+      
+      // Produce
+      if (nameLower.match(/onion|garlic|ginger|tomato|pepper|cilantro|parsley|lettuce|carrot|celery|potato|herb|vegetable|fruit/)) {
+        return 'Produce';
+      }
+      
+      // Meat
+      if (nameLower.match(/lamb|beef|chicken|pork|turkey|steak|meat/)) {
+        return 'Meat';
+      }
+      
+      // Seafood
+      if (nameLower.match(/fish|salmon|tuna|shrimp|crab|lobster|seafood/)) {
+        return 'Seafood';
+      }
+      
+      // Dairy
+      if (nameLower.match(/milk|cheese|butter|cream|yogurt|ghee/)) {
+        return 'Dairy';
+      }
+      
+      // Pantry
+      if (nameLower.match(/salt|pepper|spice|flour|sugar|oil|vinegar|sauce|masala|cumin|coriander|turmeric|cayenne|nectar|rice/)) {
+        return 'Pantry';
+      }
+      
+      // Frozen
+      if (nameLower.match(/frozen|ice/)) {
+        return 'Frozen';
+      }
+      
+      // Bakery
+      if (nameLower.match(/bread|bun|roll|bagel|tortilla/)) {
+        return 'Bakery';
+      }
+      
+      return 'Other';
+    }
+
     function delIngRow(i) {
       ensureRecipeForm();
       state.recipeForm.ingredientsRows.splice(i, 1);
@@ -1361,9 +1540,16 @@
         <div class="mt-6">
           <div class="flex items-center justify-between mb-2">
             <label class="font-semibold" style="color:${CONFIG.text_color};">Ingredients</label>
-            <button type="button" onclick="addIngRow()"
-              class="px-3 py-2 rounded button-hover"
-              style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">+ Add</button>
+            <div class="flex gap-2">
+              <button type="button" onclick="showBulkImportModal()"
+                class="px-3 py-2 rounded button-hover"
+                style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.9}px;">
+                📋 Bulk Import
+              </button>
+              <button type="button" onclick="addIngRow()"
+                class="px-3 py-2 rounded button-hover"
+                style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">+ Add</button>
+            </div>
           </div>
 
           <div class="rounded overflow-hidden" style="border:1px solid rgba(255,255,255,0.08);">
