@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meal Planner</title>
+  <!-- Test image in head to verify loading -->
+  <script>
+    // Test if we can load external images
+    const testImg = new Image();
+    testImg.onload = () => console.log('✅ External images CAN load in this environment');
+    testImg.onerror = () => console.error('❌ External images CANNOT load in this environment');
+    testImg.src = 'https://picsum.photos/50/50';
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -441,7 +449,15 @@
 
     function recipeThumb(r) {
       const u = (r?.image_url || '').trim();
-      return u ? u : '';
+      if (!u) return '';
+      
+      // Handle both http and https
+      if (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('data:')) {
+        return u;
+      }
+      
+      // If no protocol, assume https
+      return 'https://' + u;
     }
 
     function recipeIngList(r) {
@@ -1714,12 +1730,21 @@
               <!-- Image Preview -->
               ${state.recipeForm.image_url ? `
                 <div class="mt-4 rounded overflow-hidden relative" style="border:1px solid rgba(255,255,255,0.08);">
-                  <img src="${esc(state.recipeForm.image_url)}" style="width:100%; max-height:260px; object-fit:cover;" />
+                  <img src="${state.recipeForm.image_url}" 
+                       alt="Recipe preview"
+                       onerror="this.parentElement.querySelector('.error-msg').style.display='block'; this.style.display='none';"
+                       style="width:100%; max-height:260px; object-fit:cover;" />
+                  <div class="error-msg p-4 text-center" style="display:none; color:#dc2626; background:rgba(220,38,38,0.1);">
+                    ⚠️ Image failed to load. The URL might be invalid or blocked.
+                  </div>
                   <button type="button" onclick="removeImage()"
                     class="absolute top-2 right-2 px-3 py-1.5 rounded button-hover"
                     style="background:rgba(220,38,38,0.9); color:white; font-size:${CONFIG.font_size * 0.85}px;">
                     ✕ Remove
                   </button>
+                </div>
+                <div class="mt-2 p-2 rounded" style="background:rgba(255,255,255,0.05); color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.85}px; word-break:break-all;">
+                  <strong>Current URL:</strong> ${state.recipeForm.image_url}
                 </div>` : ''}
             </div>
 
@@ -1787,6 +1812,9 @@ Step 3: Add wet ingredients..."
       // Parse instructions into steps
       const instructionSteps = instructions ? instructions.split('\n').filter(s => s.trim()) : [];
 
+      // Debug: Log image URL
+      console.log('Recipe image URL:', img);
+
       return `
         <div class="p-6 max-w-5xl mx-auto">
           <div class="flex items-center justify-between mb-4 mobile-stack gap-3">
@@ -1822,9 +1850,19 @@ Step 3: Add wet ingredients..."
               </button>
             </div>
 
-            ${img ? `<div class="mt-4 rounded overflow-hidden" style="border:1px solid rgba(255,255,255,0.08);">
-              <img src="${esc(img)}" style="width:100%; max-height:260px; object-fit:cover;" />
-            </div>` : ''}
+            ${img ? `
+              <div class="mt-4 rounded overflow-hidden" style="border:1px solid rgba(255,255,255,0.08);">
+                <img src="${img}" 
+                     alt="${esc(r.title)}"
+                     onerror="console.error('Image failed to load:', this.src); this.style.display='none'; this.nextElementSibling.style.display='block';"
+                     onload="console.log('Image loaded successfully:', this.src);"
+                     style="width:100%; max-height:260px; object-fit:cover; display:block;" />
+                <div style="display:none; padding:20px; text-align:center; color:#dc2626; background:rgba(220,38,38,0.1);">
+                  ⚠️ Image failed to load<br>
+                  <small style="font-size:12px; opacity:0.8;">${img}</small>
+                </div>
+              </div>
+            ` : ''}
 
             ${url ? `<div class="mt-4">
               <a href="${esc(url)}" target="_blank" rel="noopener noreferrer"
