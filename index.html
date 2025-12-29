@@ -68,6 +68,60 @@
       .mobile-full {
         width: 100%;
       }
+
+      /* Compact sidebar on mobile */
+      .mobile-compact-sidebar {
+        position: sticky;
+        top: 60px;
+        z-index: 40;
+        background: inherit;
+        padding: 12px;
+        margin: -12px -12px 12px -12px;
+      }
+
+      /* Smaller cards on mobile */
+      .mobile-compact-card {
+        padding: 12px !important;
+      }
+
+      .mobile-compact-card img {
+        height: 80px !important;
+      }
+
+      .mobile-compact-card .mobile-hide-on-small {
+        display: none;
+      }
+
+      /* Reduce header size on mobile */
+      .mobile-compact-header h2 {
+        font-size: 1.5rem !important;
+      }
+
+      .mobile-compact-header p {
+        font-size: 0.75rem !important;
+      }
+
+      /* Stack buttons vertically on mobile */
+      .mobile-button-stack {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .mobile-button-stack button {
+        width: 100%;
+      }
+
+      /* Compact search */
+      .mobile-compact-search {
+        padding: 8px 12px !important;
+        font-size: 14px !important;
+      }
+
+      /* Grid adjustments */
+      .mobile-recipe-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
     }
 
     /* Accordion styling */
