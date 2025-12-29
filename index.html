@@ -59,6 +59,73 @@
       navigation: auto;
     }
 
+    /* Default styles - Mobile first */
+    .mobile-filters {
+      display: block;
+    }
+
+    .desktop-sidebar {
+      display: none;
+    }
+
+    .recipe-card-desktop {
+      display: none;
+    }
+
+    .recipe-list-mobile {
+      display: block;
+    }
+
+    .mobile-list-item {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+    }
+
+    .mobile-list-item:last-child {
+      border-bottom: none;
+    }
+
+    .mobile-list-item img {
+      width: 60px;
+      height: 60px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .mobile-list-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Desktop overrides - ONLY on large screens */
+    @media (min-width: 1025px) {
+      .mobile-filters {
+        display: none;
+      }
+
+      .desktop-sidebar {
+        display: grid;
+      }
+
+      .recipe-card-desktop {
+        display: grid;
+      }
+
+      .recipe-list-mobile {
+        display: none;
+      }
+
+      .mobile-list-item {
+        display: none;
+      }
+    }
+
     /* Mobile optimizations */
     @media (max-width: 1024px) {
       .mobile-stack {
