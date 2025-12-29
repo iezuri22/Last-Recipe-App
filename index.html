@@ -60,7 +60,7 @@
     }
 
     /* Mobile optimizations */
-    @media (max-width: 768px) {
+    @media (max-width: 1024px) {
       .mobile-stack {
         flex-direction: column;
       }
@@ -69,58 +69,75 @@
         width: 100%;
       }
 
-      /* Compact sidebar on mobile */
-      .mobile-compact-sidebar {
-        position: sticky;
-        top: 60px;
-        z-index: 40;
-        background: inherit;
+      /* Hide sidebar on mobile - show inline filters */
+      .desktop-sidebar {
+        display: none !important;
+      }
+
+      .mobile-filters {
+        display: block !important;
+      }
+
+      /* Compact list view for mobile */
+      .recipe-card-desktop {
+        display: none !important;
+      }
+
+      .recipe-list-mobile {
+        display: block !important;
+      }
+
+      .mobile-list-item {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 12px;
         padding: 12px;
-        margin: -12px -12px 12px -12px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
       }
 
-      /* Smaller cards on mobile */
-      .mobile-compact-card {
-        padding: 12px !important;
+      .mobile-list-item:last-child {
+        border-bottom: none;
       }
 
-      .mobile-compact-card img {
-        height: 80px !important;
+      .mobile-list-item img {
+        width: 60px;
+        height: 60px;
+        flex-shrink: 0;
+        border-radius: 8px;
+        object-fit: cover;
       }
 
-      .mobile-compact-card .mobile-hide-on-small {
-        display: none;
+      .mobile-list-content {
+        flex: 1;
+        min-width: 0;
       }
 
       /* Reduce header size on mobile */
-      .mobile-compact-header h2 {
+      .page-header h2 {
         font-size: 1.5rem !important;
       }
 
-      .mobile-compact-header p {
+      .page-header p {
         font-size: 0.75rem !important;
       }
 
       /* Stack buttons vertically on mobile */
-      .mobile-button-stack {
+      .header-buttons {
         flex-direction: column;
         width: 100%;
+        gap: 8px;
       }
 
-      .mobile-button-stack button {
+      .header-buttons button {
         width: 100%;
-      }
-
-      /* Compact search */
-      .mobile-compact-search {
-        padding: 8px 12px !important;
         font-size: 14px !important;
+        padding: 10px 16px !important;
       }
 
-      /* Grid adjustments */
-      .mobile-recipe-grid {
-        grid-template-columns: 1fr !important;
-        gap: 12px !important;
+      /* Compact padding */
+      .page-container {
+        padding: 12px !important;
       }
     }
 
