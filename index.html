@@ -300,7 +300,8 @@ const planData = state.planData || [];<!doctype html>
       selectedGroceryRecipeId: null,
       currentWeekStartDate: getMonday(new Date()).toISOString().split('T')[0],
       isLoading: false,
-      selectedRecipeViewId: null
+      selectedRecipeViewId: null,
+      viewingFromPlan: null, // {date, meal} when viewing recipe from weekly plan
     };
 
     // ===== STORAGE SDK =====
@@ -954,8 +955,9 @@ const planData = state.planData || [];<!doctype html>
       render();
     }
 
-    function openRecipeView(id) {
+    function openRecipeView(id, fromPlan = null) {
       state.selectedRecipeViewId = id;
+      state.viewingFromPlan = fromPlan; // {date, meal} or null
       state.currentView = 'recipe-view';
       render();
     }
@@ -2044,13 +2046,25 @@ Step 3: Add wet ingredients..."
       console.log('Recipe image URL:', img);
 
       return `
-        <div class="p-6 max-w-5xl mx-auto">
+                  <div class="p-6 max-w-5xl mx-auto">
           <div class="flex items-center justify-between mb-4 mobile-stack gap-3">
-            <button type="button" onclick="state.currentView='recipes'; render();"
+            <button type="button" onclick="state.currentView='${state.viewingFromPlan ? 'weekly-plan' : 'recipes'}'; state.viewingFromPlan=null; render();"
               class="px-4 py-2 rounded button-hover"
               style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">← Back</button>
 
-            <div class="flex gap-2">
+            <div class="flex gap-2 flex-wrap">
+              ${state.viewingFromPlan ? `
+                <button type="button" onclick="openRecipePicker('${state.viewingFromPlan.date}', '${state.viewingFromPlan.meal}')"
+                  class="px-4 py-2 rounded-xl button-hover"
+                  style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">
+                  🔄 Change Recipe
+                </button>
+                <button type="button" onclick="if(confirm('Remove this meal from your plan?')) { removeMealFromPlan('${state.viewingFromPlan.date}', '${state.viewingFromPlan.meal}'); state.currentView='weekly-plan'; state.viewingFromPlan=null; }"
+                  class="px-4 py-2 rounded-xl button-hover"
+                  style="background:#dc2626; color:white;">
+                  🗑️ Remove from Plan
+                </button>
+              ` : ''}
               ${r.isDraft ? `
                 <button type="button" onclick="publishDraft('${r.__backendId || r.id}')"
                   class="px-4 py-2 rounded button-hover"
