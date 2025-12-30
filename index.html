@@ -1113,6 +1113,7 @@ const planData = state.planData || [];<!doctype html>
     function openRecipePicker(date, meal) {
       state.selectedDayForRecipe = date;
       state.selectedMealForRecipe = meal;
+      state.selectedCategory = 'All'; // Default to All when picking recipes
       state.currentView = 'recipe-picker';
       render();
     }
