@@ -2456,6 +2456,7 @@ Step 3: Add wet ingredients..."
     // ===== MAIN RENDER =====
     function render() {
       const app = document.getElementById('app');
+      if (!app) return;
 
       let content = '';
       switch (state.currentView) {
@@ -2491,7 +2492,7 @@ Step 3: Add wet ingredients..."
       }
 
       app.innerHTML = `
-        <div style="background: ${CONFIG.background_color}; min-height: 100%;">
+        <div style="background: ${CONFIG.background_color}; min-height: 100vh;">
           ${renderNav()}
           ${content}
         </div>
