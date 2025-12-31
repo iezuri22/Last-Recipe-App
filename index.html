@@ -1428,12 +1428,20 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
     }
 
     function renderRecipeStats() {
-
-          
+  // Add filter state if it doesn't exist
+  if (state.showOnlyCookedRecipes === undefined) {
+    state.showOnlyCookedRecipes = true; // Default to showing only cooked recipes
+  }
+  
   // Get all published recipes sorted by times cooked
-  const sortedRecipes = state.recipes
+  let sortedRecipes = state.recipes
     .filter(r => !r.isDraft)
     .sort((a, b) => (b.timesCooked || 0) - (a.timesCooked || 0));
+  
+  // Apply filter if enabled
+  if (state.showOnlyCookedRecipes) {
+    sortedRecipes = sortedRecipes.filter(r => (r.timesCooked || 0) > 0);
+  }
 
   return `
     <div class="p-6 max-w-7xl mx-auto fade-in">
@@ -1446,6 +1454,11 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
             Ranked by number of times cooked
           </p>
         </div>
+        <label style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 0.9}px;" class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" ${state.showOnlyCookedRecipes ? 'checked' : ''}
+                 onchange="state.showOnlyCookedRecipes = this.checked; render();">
+          <span>Only show cooked recipes</span>
+        </label>
       </div>
 
       ${sortedRecipes.length === 0 ? `
