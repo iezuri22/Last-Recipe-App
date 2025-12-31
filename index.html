@@ -959,12 +959,13 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
   navigateTo('recipes');
 }
 
-    function openRecipeView(id, fromPlan = null) {
-      state.selectedRecipeViewId = id;
-      state.viewingFromPlan = fromPlan; // {date, meal} or null
-      state.currentView = 'recipe-view';
-      render();
-    }
+   function openRecipeView(id, fromPlan = null, fromStats = false) {
+  state.selectedRecipeViewId = id;
+  state.viewingFromPlan = fromPlan; // {date, meal} or null
+  state.viewingFromStats = fromStats; // true if coming from recipe-stats
+  state.currentView = 'recipe-view';
+  render();
+}
 
     async function saveRecipeForm() {
       ensureRecipeForm();
@@ -1482,7 +1483,7 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
             
             return `
             <div class="rounded-lg overflow-hidden card-hover cursor-pointer"
-              onclick="openRecipeView('${id}')"
+  onclick="openRecipeView('${id}', null, true)"
               style="background:${CONFIG.surface_color}; border:1px solid rgba(255,255,255,0.08);">
               
               <!-- Image -->
@@ -1529,8 +1530,8 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
                     style="background:#16a34a; color:white; font-size:${CONFIG.font_size * .85}px;">
                     Cook Again
                   </button>
-                  <button type="button"
-                    onclick="event.stopPropagation(); openRecipeView('${id}')"
+                 <button type="button"
+  onclick="event.stopPropagation(); openRecipeView('${id}', null, true)"
                     class="flex-1 px-2 py-1.5 rounded button-hover text-center"
                     style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * .85}px;">
                     View
@@ -2231,7 +2232,7 @@ Step 3: Add wet ingredients..."
       return `
                   <div class="p-6 max-w-5xl mx-auto">
           <div class="flex items-center justify-between mb-4 mobile-stack gap-3">
-<button type="button" onclick="navigateTo('${state.viewingFromPlan ? 'weekly-plan' : 'recipes'}'); state.viewingFromPlan=null;"              class="px-4 py-2 rounded button-hover"
+<button type="button" onclick="navigateTo('${state.viewingFromPlan ? 'weekly-plan' : (state.viewingFromStats ? 'recipe-stats' : 'recipes')}'); state.viewingFromPlan=null; state.viewingFromStats=null;"              class="px-4 py-2 rounded button-hover"
               style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">← Back</button>
 
             <div class="flex gap-2 flex-wrap">
@@ -2710,13 +2711,19 @@ Step 3: Add wet ingredients..."
                   <div style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size * 1.05}px; opacity: 0.8; font-weight: 600; padding: 8px 0; border-bottom: 2px solid rgba(255,255,255,0.1); margin-bottom: 8px;">
                     ${esc(group)}
                   </div>
-                  ${groupedUnchecked[group].map(item => `
+                 ${groupedUnchecked[group].map(item => {
+                    // Capitalize first letter of each word
+                    const capitalizedName = item.name.split(' ').map(word => 
+                      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                    ).join(' ');
+                    
+                    return `
                     <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
                            class="flex items-center gap-3 p-3 rounded hover:bg-opacity-50 cursor-pointer">
                       <input type="checkbox" onchange="toggleGroceryItem('${normalizeIngredient(item.name)}')">
-                      <span>${item.quantity} ${item.unit} ${item.name}</span>
+                      <span>${capitalizedName}</span>
                     </label>
-                  `).join('')}
+                  `}).join('')}
                 </div>
               `).join('')}
             </div>
@@ -2727,13 +2734,19 @@ Step 3: Add wet ingredients..."
               <h3 style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size * 1.125}px;" class="font-semibold mb-2">
                 ✅ Checked Off
               </h3>
-              ${checked.map(item => `
+             ${checked.map(item => {
+                // Capitalize first letter of each word
+                const capitalizedName = item.name.split(' ').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                ).join(' ');
+                
+                return `
                 <label style="color: ${CONFIG.text_color}; opacity: 0.5; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
                        class="flex items-center gap-3 p-3 rounded hover:bg-opacity-50 cursor-pointer line-through">
                   <input type="checkbox" checked onchange="toggleGroceryItem('${normalizeIngredient(item.name)}')">
-                  <span>${item.quantity} ${item.unit} ${item.name}</span>
+                  <span>${capitalizedName}</span>
                 </label>
-              `).join('')}
+              `}).join('')}
             </div>
           ` : ''}
         </div>
