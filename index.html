@@ -2200,15 +2200,10 @@ Step 3: Add wet ingredients..."
                     <div class="flex items-center justify-between p-3 rounded" style="background:rgba(255,255,255,0.03);">
 
                       <div class="flex items-center gap-3 flex-1">
-  ${img ? `
-    <img src="${esc(img)}" 
-         alt="${r ? esc(r.title) : ''}"
-         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-         style="width:60px;height:60px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,0.08);" />
-    <div style="display:none; width:60px;height:60px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">🍽️</div>
-  ` : `
-    <div style="width:60px;height:60px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:1.5rem;">🍽️</div>
-  `}
+  ${img ? `<img src="${esc(img)}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,0.08);" />` :
+     `<div style="width:60px;height:60px;border-radius:10px;background:rgba(255,255,255,0.06);"></div>`}
+
+  
   <div class="flex-1">
     <div style="color:${CONFIG.text_color}; opacity:.7; font-size:${CONFIG.font_size * .85}px;">${meal}</div>
     <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">
@@ -2247,12 +2242,15 @@ Step 3: Add wet ingredients..."
 
     function renderRecipePicker() {
       // Only show published recipes in picker
+
+
       const filteredRecipes = state.recipes.filter(r => {
-        if (r.isDraft) return false; // Exclude drafts
-        if (state.filterFavorites && !r.favorite) return false;
-        if (state.searchTerm && !r.title.toLowerCase().includes(state.searchTerm.toLowerCase())) return false;
-        return r.category === state.selectedCategory;
-      });
+  if (r.isDraft) return false; // Exclude drafts
+  if (state.filterFavorites && !r.favorite) return false;
+  if (state.searchTerm && !r.title.toLowerCase().includes(state.searchTerm.toLowerCase())) return false;
+  if (state.selectedCategory === 'All') return true; // Show all when "All" is selected
+  return r.category === state.selectedCategory;
+});
 
       return `
         <div class="p-6 max-w-6xl mx-auto">
@@ -2282,40 +2280,58 @@ Step 3: Add wet ingredients..."
           </div>
 
           <div class="flex gap-2 mb-6 flex-wrap">
-            ${MEAL_CATEGORIES.map(cat => `
-              <button type="button" onclick="state.selectedCategory='${cat}'; render();"
-                      style="background: ${state.selectedCategory === cat ? CONFIG.primary_action_color : CONFIG.secondary_action_color};
-                             color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                      class="px-4 py-2 rounded button-hover">
-                ${cat}
-              </button>
-            `).join('')}
-          </div>
+  <button type="button" onclick="state.selectedCategory='All'; render();"
+          style="background: ${state.selectedCategory === 'All' ? CONFIG.primary_action_color : CONFIG.secondary_action_color};
+                 color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+          class="px-4 py-2 rounded button-hover">
+    All
+  </button>
+  ${MEAL_CATEGORIES.map(cat => `
+    <button type="button" onclick="state.selectedCategory='${cat}'; render();"
+            style="background: ${state.selectedCategory === cat ? CONFIG.primary_action_color : CONFIG.secondary_action_color};
+                   color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+            class="px-4 py-2 rounded button-hover">
+      ${cat}
+    </button>
+  `).join('')}
+</div>
 
           <div class="grid gap-3">
-            ${filteredRecipes.length === 0 ? `
-              <div style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                   class="p-8 rounded text-center">
-                No recipes found
-              </div>
-            ` : filteredRecipes.map(recipe => {
-              const sourceLabel = recipe.sourceType === 'chefiq' ? '🤖' : '👤';
-              return `
-              <button type="button"
-                      onclick="handleRecipePickerSelect('${recipe.__backendId || recipe.id}')"
-                      style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                      class="p-4 rounded card-hover text-left w-full flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                  ${recipe.favorite ? '<span style="font-size: 1.25rem;">⭐</span>' : ''}
-                  <span style="font-size: 1.25rem;">${sourceLabel}</span>
-                  <div>
-                    <div class="font-semibold" style="font-size: ${CONFIG.font_size * 1.125}px;">${recipe.title}</div>
-                    <div style="opacity: 0.7; font-size: ${CONFIG.font_size * 0.875}px;">${recipe.category}</div>
-                  </div>
-                </div>
-                <div style="color: ${CONFIG.primary_action_color}; font-size: ${CONFIG.font_size}px;">Select →</div>
-              </button>
-            `}).join('')}
+
+${filteredRecipes.length === 0 ? `
+  <div style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+       class="p-8 rounded text-center">
+    No recipes found
+  </div>
+` : filteredRecipes.map(recipe => {
+  const sourceLabel = recipe.sourceType === 'chefiq' ? '🤖' : '👤';
+  const img = recipeThumb(recipe);
+  return `
+  <button type="button"
+          onclick="handleRecipePickerSelect('${recipe.__backendId || recipe.id}')"
+          style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+          class="p-4 rounded card-hover text-left w-full flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      ${img ? `
+        <img src="${esc(img)}" 
+             alt="${esc(recipe.title)}"
+             style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"
+             onerror="this.style.display='none';" />
+      ` : ''}
+      ${recipe.favorite ? '<span style="font-size: 1.25rem;">⭐</span>' : ''}
+      <span style="font-size: 1.25rem;">${sourceLabel}</span>
+      <div>
+        <div class="font-semibold" style="font-size: ${CONFIG.font_size * 1.125}px;">${recipe.title}</div>
+        <div style="opacity: 0.7; font-size: ${CONFIG.font_size * 0.875}px;">${recipe.category}</div>
+      </div>
+    </div>
+    <div style="color: ${CONFIG.primary_action_color}; font-size: ${CONFIG.font_size}px;">Select →</div>
+  </button>
+`}).join('')}
+
+
+
+           
           </div>
         </div>
       `;
