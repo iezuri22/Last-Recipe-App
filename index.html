@@ -2670,7 +2670,25 @@ ${(r.timesCooked || 0) > 0 ? `
           </button>
         </div>
       </div>
- 
+  <div>
+    <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.5}px;">Choose Ingredients</h2>
+    <p style="color:${CONFIG.text_color}; opacity:.7; font-size:${CONFIG.font_size * .9}px;">
+      ${esc(r.title)} • ${formatDateDisplay(state.selectedGroceryDate)} ${esc(state.selectedGroceryMeal)}
+    </p>
+  </div>
+  <div class="flex gap-2">
+    <button type="button" onclick="toggleAllIngredients(${keys.length === list.length})"
+      class="px-4 py-2 rounded button-hover"
+      style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">
+      ${keys.length === list.length ? 'Deselect All' : 'Select All'}
+    </button>
+    <button type="button" onclick="state.currentView='grocery-list'; render();"
+      class="px-4 py-2 rounded button-hover"
+      style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">
+      Done
+    </button>
+  </div>
+</div>
 
           <div class="rounded p-4" style="background:${CONFIG.surface_color};">
             ${list.length ? list.map(ing => {
