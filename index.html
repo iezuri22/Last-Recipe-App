@@ -959,12 +959,24 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
   navigateTo('recipes');
 }
 
-   function openRecipeView(id, fromPlan = null, fromStats = false) {
+  function openRecipeView(id, fromPlan = null, fromStats = false) {
+  // Save scroll position before navigating
+  const app = document.getElementById('app');
+  if (app && state.currentView) {
+    state.scrollPositions[state.currentView] = app.scrollTop;
+  }
+  
   state.selectedRecipeViewId = id;
   state.viewingFromPlan = fromPlan; // {date, meal} or null
   state.viewingFromStats = fromStats; // true if coming from recipe-stats
   state.currentView = 'recipe-view';
   render();
+  
+  // Scroll to top for recipe view
+  setTimeout(() => {
+    const app = document.getElementById('app');
+    if (app) app.scrollTop = 0;
+  }, 0);
 }
 
     async function saveRecipeForm() {
@@ -1086,6 +1098,35 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
         render();
       }
     }
+    async function unmarkAsCooked(recipeId) {
+  const recipe = getRecipeById(recipeId);
+  if (!recipe) return;
+  
+  // Don't go below 0
+  if ((recipe.timesCooked || 0) === 0) {
+    showToast('Recipe has not been cooked yet', 'info');
+    return;
+  }
+
+  state.isLoading = true;
+  render();
+
+  const updatedRecipe = { 
+    ...recipe, 
+    timesCooked: (recipe.timesCooked || 0) - 1 
+  };
+  
+  const result = await storage.update(updatedRecipe);
+  state.isLoading = false;
+
+  if (result.isOk) {
+    showToast(`Unmarked! Total: ${updatedRecipe.timesCooked}`, 'success');
+    render();
+  } else {
+    showError('Failed to update cook count');
+    render();
+  }
+}
 
     // ===== MEAL PLANNING =====
     async function savePlan(date, meal, recipeId) {
@@ -2236,11 +2277,18 @@ Step 3: Add wet ingredients..."
               style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">← Back</button>
 
             <div class="flex gap-2 flex-wrap">
-              <button type="button" onclick="markAsCooked('${r.__backendId || r.id}')"
-                class="px-4 py-2 rounded-xl button-hover"
-                style="background:#16a34a; color:white;">
-                👨‍🍳 Mark as Cooked (${r.timesCooked || 0})
-              </button>
+             <button type="button" onclick="markAsCooked('${r.__backendId || r.id}')"
+  class="px-4 py-2 rounded-xl button-hover"
+  style="background:#16a34a; color:white;">
+  👨‍🍳 Mark as Cooked (${r.timesCooked || 0})
+</button>
+${(r.timesCooked || 0) > 0 ? `
+  <button type="button" onclick="unmarkAsCooked('${r.__backendId || r.id}')"
+    class="px-4 py-2 rounded-xl button-hover"
+    style="background:#dc2626; color:white;">
+    ↩️ Undo Last Cook
+  </button>
+` : ''}
               ${state.viewingFromPlan ? `
                 <button type="button" onclick="openRecipePicker('${state.viewingFromPlan.date}', '${state.viewingFromPlan.meal}')"
                   class="px-4 py-2 rounded-xl button-hover"
