@@ -1415,15 +1415,17 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
                       class="button-hover px-3 py-2 rounded-lg ${state.currentView.includes('grocery') ? 'glass' : ''}">
                 🛒 ${CONFIG.grocery_list_label}
               </button>
-              <button type="button" onclick="showSettingsMenu()"
+             <button type="button" onclick="showSettingsMenu()"
                       style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size * 1.3}px;"
                       class="button-hover p-2 rounded-lg hover:glass"
                       title="Settings & Export/Import">
                 ⚙️
               </button>
-
- </div>
-         
+            </div>
+          </div>
+        </nav>
+      `;
+    }
 
     function renderRecipeStats() {
 
