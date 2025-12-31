@@ -304,6 +304,8 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
       isLoading: false,
   selectedRecipeViewId: null,
   viewingFromPlan: null,
+      scrollPositions: {},  // ← ADD THIS LINE
+};
 };
 
     // ===== STORAGE SDK =====
@@ -954,10 +956,9 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
     }
 
     function closeRecipeEditor() {
-      state.recipeForm = null;
-      state.currentView = 'recipes';
-      render();
-    }
+  state.recipeForm = null;
+  navigateTo('recipes');
+}
 
     function openRecipeView(id, fromPlan = null) {
       state.selectedRecipeViewId = id;
@@ -1115,20 +1116,32 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
     }
 
    function openRecipePicker(date, meal) {
+  // Save scroll position
+  const app = document.getElementById('app');
+  if (app && state.currentView) {
+    state.scrollPositions[state.currentView] = app.scrollTop;
+  }
+  
   state.selectedDayForRecipe = date;
   state.selectedMealForRecipe = meal;
-  state.selectedCategory = 'All'; // Default to All when picking recipes
-  render();  // ← Move render() before changing view
+  state.selectedCategory = 'All';
   state.currentView = 'recipe-picker';
+  render();
+  
+  // Scroll to top for recipe picker
+  setTimeout(() => {
+    const app = document.getElementById('app');
+    if (app) app.scrollTop = 0;
+  }, 0);
+}
 }
 
     async function handleRecipePickerSelect(recipeId) {
-      await savePlan(state.selectedDayForRecipe, state.selectedMealForRecipe, recipeId);
-      state.selectedDayForRecipe = null;
-      state.selectedMealForRecipe = null;
-      state.currentView = 'weekly-plan';
-      render();
-    }
+  await savePlan(state.selectedDayForRecipe, state.selectedMealForRecipe, recipeId);
+  state.selectedDayForRecipe = null;
+  state.selectedMealForRecipe = null;
+  navigateTo('weekly-plan');
+}
 
     function changeWeek(direction) {
       const date = new Date(state.currentWeekStartDate);
@@ -1323,9 +1336,25 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
 
     // ===== NAVIGATION =====
     function navigateTo(view) {
-      state.currentView = view;
-      render();
+  // Save current scroll position before navigating away
+  const app = document.getElementById('app');
+  if (app && state.currentView) {
+    state.scrollPositions[state.currentView] = app.scrollTop;
+  }
+  
+  state.currentView = view;
+  render();
+  
+  // Restore scroll position for the new view
+  setTimeout(() => {
+    const app = document.getElementById('app');
+    if (app && state.scrollPositions[view] !== undefined) {
+      app.scrollTop = state.scrollPositions[view];
+    } else {
+      app.scrollTop = 0; // Scroll to top for new views
     }
+  }, 0);
+}
 
     // ===== RENDER FUNCTIONS =====
     function renderNav() {
@@ -2053,8 +2082,7 @@ Step 3: Add wet ingredients..."
       return `
                   <div class="p-6 max-w-5xl mx-auto">
           <div class="flex items-center justify-between mb-4 mobile-stack gap-3">
-            <button type="button" onclick="state.currentView='${state.viewingFromPlan ? 'weekly-plan' : 'recipes'}'; state.viewingFromPlan=null; render();"
-              class="px-4 py-2 rounded button-hover"
+<button type="button" onclick="navigateTo('${state.viewingFromPlan ? 'weekly-plan' : 'recipes'}'); state.viewingFromPlan=null;"              class="px-4 py-2 rounded button-hover"
               style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">← Back</button>
 
             <div class="flex gap-2 flex-wrap">
@@ -2288,11 +2316,11 @@ Step 3: Add wet ingredients..."
             <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
               Select Recipe for ${formatDateDisplay(state.selectedDayForRecipe)} - ${state.selectedMealForRecipe}
             </h2>
-            <button type="button" onclick="state.currentView='weekly-plan'; state.selectedDayForRecipe=null; state.selectedMealForRecipe=null; render();"
-                    style="background: ${CONFIG.secondary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                    class="px-4 py-2 rounded button-hover">
-              Cancel
-            </button>
+            <button type="button" onclick="navigateTo('weekly-plan'); state.selectedDayForRecipe=null; state.selectedMealForRecipe=null;"
+        style="background: ${CONFIG.secondary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+        class="px-4 py-2 rounded button-hover">
+  Cancel
+</button>
           </div>
 
           <div class="mb-4 flex gap-4 mobile-stack">
