@@ -2459,7 +2459,7 @@ Step 3: Add wet ingredients..."
                     return `<div class="flex items-center justify-between p-3 rounded" style="background:rgba(255,255,255,0.03);">
   <div class="flex items-center gap-3 flex-1">
     ${r ? `
-      <a href="${esc(r.recipe_url || '')}" target="_blank" rel="noopener noreferrer" 
+      <a href="${r.recipe_url}" target="_blank" rel="noopener noreferrer" 
          onclick="event.stopPropagation();"
          class="flex items-center gap-3 flex-1"
          style="text-decoration: none; color: inherit; cursor: pointer;">
