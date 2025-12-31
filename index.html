@@ -1,4 +1,4 @@
-const planData = state.planData || [];<!doctype html>
+<!doctype html>
 <html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8">
@@ -304,10 +304,8 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
       isLoading: false,
   selectedRecipeViewId: null,
   viewingFromPlan: null,
-      scrollPositions: {},  // ← ADD THIS LINE
+   scrollPositions: {}
 };
-};
-
     // ===== STORAGE SDK =====
     const storage = {
       load() {
@@ -1047,7 +1045,7 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
       }
     }
 
-    async function toggleFavorite(recipeId) {
+   async function toggleFavorite(recipeId) {
       const recipe = getRecipeById(recipeId);
       if (!recipe) return;
 
@@ -1060,6 +1058,30 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
 
       if (!result.isOk) {
         showError('Failed to update favorite status');
+        render();
+      }
+    }
+
+    async function markAsCooked(recipeId) {
+      const recipe = getRecipeById(recipeId);
+      if (!recipe) return;
+
+      state.isLoading = true;
+      render();
+
+      const updatedRecipe = { 
+        ...recipe, 
+        timesCooked: (recipe.timesCooked || 0) + 1 
+      };
+      
+      const result = await storage.update(updatedRecipe);
+      state.isLoading = false;
+
+      if (result.isOk) {
+        showToast(`Marked as cooked! Total: ${updatedRecipe.timesCooked}`, 'success');
+        render();
+      } else {
+        showError('Failed to update cook count');
         render();
       }
     }
@@ -1134,7 +1156,6 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
     const app = document.getElementById('app');
     if (app) app.scrollTop = 0;
   }, 0);
-}
 }
 
     async function handleRecipePickerSelect(recipeId) {
@@ -1211,6 +1232,7 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
               name: ing.name,
               quantity: ing.qty || '',
               unit: ing.unit || '',
+              group: ing.group || 'Other',
               checked: false
             };
           }
@@ -1224,54 +1246,9 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
 
       return Object.values(aggregated);
     }
-    function getGroceryList() {
-  const aggregated = {};
+    
 
-  state.mealSelections.forEach(sel => {
-    const parts = sel.id.split('_');
-    const date = parts[1];
-    const meal = parts[2];
-    const plan = state.planData.find(p => p.date === date);
-    if (!plan) return;
-
-    const mealKey = (meal || '').toLowerCase();
-    const recipeId = plan[mealKey];
-    if (!recipeId) return;
-
-    const r = getRecipeById(recipeId);
-    if (!r) return;
-
-    let keys = [];
-    try {
-      keys = JSON.parse(sel.includedIngredientKeys || '[]');
-    } catch (e) {
-      keys = [];
-    }
-
-    recipeIngList(r).forEach(ing => {
-      const k = normalizeIngredient(ing.name);
-      if (!keys.includes(k)) return;
-
-      if (!aggregated[k]) {
-        aggregated[k] = {
-          name: ing.name,
-          quantity: ing.qty || '',
-          unit: ing.unit || '',
-          group: ing.group || 'Other',  // ← ADD THIS LINE
-          checked: false
-        };
-      }
-    });
-  });
-
-  Object.keys(aggregated).forEach(k => {
-    const gi = state.groceryItems.find(x => x.ingredientKey === k);
-    aggregated[k].checked = gi ? !!gi.checked : false;
-  });
-
-  return Object.values(aggregated);
-}
-
+ 
     function openGroceryIngredientPicker(date, meal, recipeId) {
       state.selectedGroceryDate = date;
       state.selectedGroceryMeal = meal;
@@ -1418,10 +1395,15 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
               <span class="app-title">${CONFIG.app_title}</span>
             </button>
             <div class="flex gap-3 flex-wrap items-center">
-              <button type="button" onclick="navigateTo('recipes')"
+             <button type="button" onclick="navigateTo('recipes')"
                       style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px;"
-                      class="button-hover px-3 py-2 rounded-lg ${state.currentView.includes('recipe') ? 'glass' : ''}">
+                      class="button-hover px-3 py-2 rounded-lg ${state.currentView.includes('recipe') && state.currentView !== 'recipe-stats' ? 'glass' : ''}">
                 📚 ${CONFIG.recipes_label}
+              </button>
+              <button type="button" onclick="navigateTo('recipe-stats')"
+                      style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px;"
+                      class="button-hover px-3 py-2 rounded-lg ${state.currentView === 'recipe-stats' ? 'glass' : ''}">
+                👨‍🍳 Most Cooked
               </button>
               <button type="button" onclick="navigateTo('weekly-plan')"
                       style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px;"
@@ -1439,36 +1421,16 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
                       title="Settings & Export/Import">
                 ⚙️
               </button>
-            </div>
-            <div class="flex gap-3 flex-wrap items-center">
-  <button type="button" onclick="navigateTo('recipes')"
-          style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px;"
-          class="button-hover px-3 py-2 rounded-lg ${state.currentView.includes('recipe') && state.currentView !== 'recipe-stats' ? 'glass' : ''}">
-    📚 ${CONFIG.recipes_label}
-  </button>
-  <button type="button" onclick="navigateTo('recipe-stats')"
-          style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px;"
-          class="button-hover px-3 py-2 rounded-lg ${state.currentView === 'recipe-stats' ? 'glass' : ''}">
-    👨‍🍳 Most Cooked
-  </button>
-  <button type="button" onclick="navigateTo('weekly-plan')"
-          style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px;"
-          class="button-hover px-3 py-2 rounded-lg ${state.currentView === 'weekly-plan' ? 'glass' : ''}">
-    📅 ${CONFIG.weekly_plan_label}
-  </button>
-  <button type="button" onclick="navigateTo('grocery-list')"
-          style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px;"
-          class="button-hover px-3 py-2 rounded-lg ${state.currentView.includes('grocery') ? 'glass' : ''}">
-    🛒 ${CONFIG.grocery_list_label}
-  </button>
-  <button type="button" onclick="showSettingsMenu()"
-          style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size * 1.3}px;"
-          class="button-hover p-2 rounded-lg hover:glass"
-          title="Settings & Export/Import">
-    ⚙️
-  </button>
-</div>
-function renderRecipeStats() {
+
+ </div>
+          </div>
+        </nav>
+      `;
+    }
+
+    function renderRecipeStats() {
+
+          
   // Get all published recipes sorted by times cooked
   const sortedRecipes = state.recipes
     .filter(r => !r.isDraft)
@@ -2264,6 +2226,11 @@ Step 3: Add wet ingredients..."
               style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">← Back</button>
 
             <div class="flex gap-2 flex-wrap">
+              <button type="button" onclick="markAsCooked('${r.__backendId || r.id}')"
+                class="px-4 py-2 rounded-xl button-hover"
+                style="background:#16a34a; color:white;">
+                👨‍🍳 Mark as Cooked (${r.timesCooked || 0})
+              </button>
               ${state.viewingFromPlan ? `
                 <button type="button" onclick="openRecipePicker('${state.viewingFromPlan.date}', '${state.viewingFromPlan.meal}')"
                   class="px-4 py-2 rounded-xl button-hover"
@@ -2285,57 +2252,9 @@ Step 3: Add wet ingredients..."
                 class="px-4 py-2 rounded button-hover"
                 style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">Edit</button>
             </div>
-            <div class="flex gap-2 flex-wrap">
-  <button type="button" onclick="markAsCooked('${r.__backendId || r.id}')"
-    class="px-4 py-2 rounded-xl button-hover"
-    style="background:#16a34a; color:white;">
-    👨‍🍳 Mark as Cooked (${r.timesCooked || 0})
-  </button>
-  ${state.viewingFromPlan ? `
-    <button type="button" onclick="openRecipePicker('${state.viewingFromPlan.date}', '${state.viewingFromPlan.meal}')"
-      class="px-4 py-2 rounded-xl button-hover"
-      style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">
-      🔄 Change Recipe
-    </button>
-    <button type="button" onclick="if(confirm('Remove this meal from your plan?')) { removeMealFromPlan('${state.viewingFromPlan.date}', '${state.viewingFromPlan.meal}'); state.currentView='weekly-plan'; state.viewingFromPlan=null; }"
-      class="px-4 py-2 rounded-xl button-hover"
-      style="background:#dc2626; color:white;">
-      🗑️ Remove from Plan
-    </button>
-  ` : ''}
-  ${r.isDraft ? `
-    <button type="button" onclick="publishDraft('${r.__backendId || r.id}')"
-      class="px-4 py-2 rounded button-hover"
-      style="background:#16a34a; color:white;">Publish</button>
-  ` : ''}
-  <button type="button" onclick="openEditRecipe('${r.__backendId || r.id}')"
-    class="px-4 py-2 rounded button-hover"
-    style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">Edit</button>
-</div>
           </div>
-          async function markAsCooked(recipeId) {
-  const recipe = getRecipeById(recipeId);
-  if (!recipe) return;
 
-  state.isLoading = true;
-  render();
-
-  const updatedRecipe = { 
-    ...recipe, 
-    timesCooked: (recipe.timesCooked || 0) + 1 
-  };
   
-  const result = await storage.update(updatedRecipe);
-  state.isLoading = false;
-
-  if (result.isOk) {
-    showToast(`Marked as cooked! Total: ${updatedRecipe.timesCooked}`, 'success');
-    render();
-  } else {
-    showError('Failed to update cook count');
-    render();
-  }
-}
 
           <div class="rounded p-5" style="background:${CONFIG.surface_color};">
             <div class="flex items-start justify-between gap-3">
@@ -2459,7 +2378,7 @@ Step 3: Add wet ingredients..."
                     return `<div class="flex items-center justify-between p-3 rounded" style="background:rgba(255,255,255,0.03);">
   <div class="flex items-center gap-3 flex-1">
     ${r ? `
-      <a href="${r.recipe_url}" target="_blank" rel="noopener noreferrer" 
+      <a href="${r.recipe_url || '#'}" target="_blank" rel="noopener noreferrer"
          onclick="event.stopPropagation();"
          class="flex items-center gap-3 flex-1"
          style="text-decoration: none; color: inherit; cursor: pointer;">
@@ -2809,30 +2728,10 @@ Step 3: Add wet ingredients..."
             </div>
           ` : ''}
         </div>
-      `}
+     `}
     </div>
   `;
 }
-
-              ${checked.length > 0 ? `
-                <div>
-                  <h3 style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size * 1.125}px;" class="font-semibold mb-2">
-                    Checked Off
-                  </h3>
-                  ${checked.map(item => `
-                    <label style="color: ${CONFIG.text_color}; opacity: 0.5; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                           class="flex items-center gap-3 p-3 rounded hover:bg-opacity-50 cursor-pointer line-through">
-                      <input type="checkbox" checked onchange="toggleGroceryItem('${normalizeIngredient(item.name)}')">
-                      <span>${item.quantity} ${item.unit} ${item.name}</span>
-                    </label>
-                  `).join('')}
-                </div>
-              ` : ''}
-            </div>
-          `}
-        </div>
-      `;
-    }
 
     // ===== MAIN RENDER =====
     function render() {
@@ -2868,29 +2767,9 @@ Step 3: Add wet ingredients..."
         case 'grocery-ingredients':
           content = renderGroceryIngredients();
           break;
-        default:
-          content = renderHome();
-      }
-let content = '';
-switch (state.currentView) {
-  case 'home':
-    content = renderHome();
-    break;
-  case 'recipes':
-    content = renderRecipes();
-    break;
-  case 'recipe-stats':  // ← ADD THIS CASE
-    content = renderRecipeStats();
-    break;
-  case 'recipe-edit':
-    content = renderRecipeEdit();
-    break;
-  case 'recipe-view':
-    content = renderRecipeView();
-    break;
-  case 'weekly-plan':
-    content = renderWeeklyPlan();
-    break; break;
+        case 'recipe-stats':
+          content = renderRecipeStats();
+          break;
         case 'recipe-picker':
           content = renderRecipePicker();
           break;
