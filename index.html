@@ -280,29 +280,31 @@ const planData = state.planData || [];<!doctype html>
     const STORAGE_KEY = 'meal_planner_data_v1';
 
     // State
+
     const state = {
-      recipes: [],
-      planData: [],
-      mealSelections: [],
-      groceryItems: [],
-      currentView: 'home',
-      recipeForm: null,
-      selectedDayForRecipe: null,
-      selectedMealForRecipe: null,
-      selectedCategory: 'All',
-      searchTerm: '',
-      filterFavorites: false,
-      filterSourceType: 'all', // 'all', 'user', 'chefiq'
-      filterIngredientGroup: 'all', // 'all' or specific ingredient group
-      showDrafts: false,
-      selectedGroceryDate: null,
-      selectedGroceryMeal: null,
-      selectedGroceryRecipeId: null,
-      currentWeekStartDate: getMonday(new Date()).toISOString().split('T')[0],
+  recipes: [],
+  planData: [],
+  mealSelections: [],
+  groceryItems: [],
+  currentView: 'home',
+  recipeForm: null,
+  selectedDayForRecipe: null,
+  selectedMealForRecipe: null,
+  selectedCategory: 'All',
+  searchTerm: '',
+  filterFavorites: false,
+  filterUserCreated: false,  // ← ADD THIS LINE
+  filterSourceType: 'all',
+  filterIngredientGroup: 'all',
+  showDrafts: false,
+  selectedGroceryDate: null,
+  selectedGroceryMeal: null,
+  selectedGroceryRecipeId: null,
+currentWeekStartDate: new Date().toISOString().split('T')[0],
       isLoading: false,
-      selectedRecipeViewId: null,
-      viewingFromPlan: null, // {date, meal} when viewing recipe from weekly plan
-    };
+  selectedRecipeViewId: null,
+  viewingFromPlan: null,
+};
 
     // ===== STORAGE SDK =====
     const storage = {
@@ -368,16 +370,18 @@ const planData = state.planData || [];<!doctype html>
       return new Date(d.setDate(diff));
     }
 
-    function getWeekDates(startDate) {
-      const dates = [];
-      const start = new Date(startDate);
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(start);
-        date.setDate(start.getDate() + i);
-        dates.push(date.toISOString().split('T')[0]);
-      }
-      return dates;
-    }
+   function getWeekDates(startDate) {
+  const dates = [];
+  const start = new Date(startDate);
+  
+  // Start with the given date and get the next 7 days
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+    dates.push(date.toISOString().split('T')[0]);
+  }
+  return dates;
+}
 
     function formatDateDisplay(dateStr) {
       const date = new Date(dateStr + 'T00:00:00');
@@ -2244,11 +2248,12 @@ Step 3: Add wet ingredients..."
       // Only show published recipes in picker
 
 
-      const filteredRecipes = state.recipes.filter(r => {
+    const filteredRecipes = state.recipes.filter(r => {
   if (r.isDraft) return false; // Exclude drafts
   if (state.filterFavorites && !r.favorite) return false;
+  if (state.filterUserCreated && r.sourceType !== 'user') return false; // ← ADD THIS LINE
   if (state.searchTerm && !r.title.toLowerCase().includes(state.searchTerm.toLowerCase())) return false;
-  if (state.selectedCategory === 'All') return true; // Show all when "All" is selected
+  if (state.selectedCategory === 'All') return true;
   return r.category === state.selectedCategory;
 });
 
@@ -2266,18 +2271,24 @@ Step 3: Add wet ingredients..."
           </div>
 
           <div class="mb-4 flex gap-4 mobile-stack">
-            <input type="text" placeholder="Search recipes..."
-                   style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border-color: ${CONFIG.secondary_action_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                   class="flex-1 px-4 py-2 rounded border mobile-full"
-                   value="${state.searchTerm}"
-                   oninput="state.searchTerm = this.value; render();">
+  <input type="text" placeholder="Search recipes..."
+         style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border-color: ${CONFIG.secondary_action_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+         class="flex-1 px-4 py-2 rounded border mobile-full"
+         value="${state.searchTerm}"
+         oninput="state.searchTerm = this.value; render();">
 
-            <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2">
-              <input type="checkbox" ${state.filterFavorites ? 'checked' : ''}
-                     onchange="state.filterFavorites = this.checked; render();">
-              Favorites Only
-            </label>
-          </div>
+  <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2 whitespace-nowrap">
+    <input type="checkbox" ${state.filterFavorites ? 'checked' : ''}
+           onchange="state.filterFavorites = this.checked; render();">
+    ⭐ Favorites Only
+  </label>
+
+  <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2 whitespace-nowrap">
+    <input type="checkbox" ${state.filterUserCreated ? 'checked' : ''}
+           onchange="state.filterUserCreated = this.checked; render();">
+    👤 User-Created Only
+  </label>
+</div>
 
           <div class="flex gap-2 mb-6 flex-wrap">
   <button type="button" onclick="state.selectedCategory='All'; render();"
@@ -2296,37 +2307,41 @@ Step 3: Add wet ingredients..."
   `).join('')}
 </div>
 
-          <div class="grid gap-3">
 
-${filteredRecipes.length === 0 ? `
-  <div style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-       class="p-8 rounded text-center">
-    No recipes found
-  </div>
-` : filteredRecipes.map(recipe => {
+         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+  ${filteredRecipes.length === 0 ? `
+    <div style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+         class="p-8 rounded text-center col-span-full">
+      No recipes found
+    </div>
+  ` : filteredRecipes.map(recipe => {
   const sourceLabel = recipe.sourceType === 'chefiq' ? '🤖' : '👤';
   const img = recipeThumb(recipe);
   return `
-  <button type="button"
-          onclick="handleRecipePickerSelect('${recipe.__backendId || recipe.id}')"
-          style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-          class="p-4 rounded card-hover text-left w-full flex items-center justify-between">
-    <div class="flex items-center gap-4">
-      ${img ? `
-        <img src="${esc(img)}" 
-             alt="${esc(recipe.title)}"
-             style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"
-             onerror="this.style.display='none';" />
-      ` : ''}
-      ${recipe.favorite ? '<span style="font-size: 1.25rem;">⭐</span>' : ''}
-      <span style="font-size: 1.25rem;">${sourceLabel}</span>
-      <div>
-        <div class="font-semibold" style="font-size: ${CONFIG.font_size * 1.125}px;">${recipe.title}</div>
-        <div style="opacity: 0.7; font-size: ${CONFIG.font_size * 0.875}px;">${recipe.category}</div>
-      </div>
-    </div>
-    <div style="color: ${CONFIG.primary_action_color}; font-size: ${CONFIG.font_size}px;">Select →</div>
-  </button>
+
+<button type="button"
+        onclick="handleRecipePickerSelect('${recipe.__backendId || recipe.id}')"
+        style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+        class="p-4 rounded card-hover text-left w-full flex flex-col gap-3">
+  ${img ? `
+    <img src="${esc(img)}" 
+         alt="${esc(recipe.title)}"
+         style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);"
+         onerror="this.style.display='none';" />
+  ` : `
+    <div style="width: 100%; height: 150px; background: rgba(255,255,255,0.03); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 3rem;">🍽️</div>
+  `}
+  <div class="flex items-center gap-2 flex-wrap">
+    ${recipe.favorite ? '<span style="font-size: 1rem;">⭐</span>' : ''}
+    <span style="font-size: 1rem;">${sourceLabel}</span>
+    <div style="opacity: 0.6; font-size: ${CONFIG.font_size * 0.8}px;">${recipe.category}</div>
+  </div>
+  <div class="font-semibold" style="font-size: ${CONFIG.font_size * 1.05}px; line-height: 1.3;">${recipe.title}</div>
+  <div style="color: ${CONFIG.primary_action_color}; font-size: ${CONFIG.font_size * 0.9}px; text-align: center; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08);">
+    Select →
+  </div>
+</button>
+  
 `}).join('')}
 
 
