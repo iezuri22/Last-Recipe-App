@@ -300,8 +300,13 @@
   selectedGroceryDate: null,
   selectedGroceryMeal: null,
   selectedGroceryRecipeId: null,
-currentWeekStartDate: new Date().toISOString().split('T')[0],
-      isLoading: false,
+currentWeekStartDate: (() => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+})(),      isLoading: false,
   selectedRecipeViewId: null,
   viewingFromPlan: null,
    scrollPositions: {}
@@ -374,12 +379,28 @@ currentWeekStartDate: new Date().toISOString().split('T')[0],
   const dates = [];
   const start = new Date(startDate);
   
-  // Start with the given date and get the next 7 days
+  // Check if we should include yesterday
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  
+  const startDateObj = new Date(start);
+  const daysDiff = Math.floor((startDateObj - yesterday) / (1000 * 60 * 60 * 24));
+  
+  // If start date is today and yesterday is within this week, include it
+  const shouldIncludeYesterday = daysDiff === 1;
+  
+  if (shouldIncludeYesterday) {
+    dates.push(yesterday.toISOString().split('T')[0]);
+  }
+  
+  // Get the next 7 days from start date
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
     dates.push(date.toISOString().split('T')[0]);
   }
+  
   return dates;
 }
 
@@ -2659,8 +2680,16 @@ ${(r.timesCooked || 0) > 0 ? `
         </div>`;
     }
 
-    function renderGrocerySelectMeals() {
-      const plannedMeals = getPlannedMealsForWeek(state.currentWeekStartDate);
+   function renderGrocerySelectMeals() {
+  // Get yesterday's date
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  
+  // Get all planned meals and filter to yesterday + next 7 days
+  const allMeals = getPlannedMealsForWeek(yesterdayStr);
+  const plannedMeals = allMeals.slice(0, 8); // Yesterday + 7 days = 8 days
 
       return `
         <div class="p-6 max-w-4xl mx-auto">
