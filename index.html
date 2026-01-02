@@ -1300,7 +1300,7 @@ currentWeekStartDate: (() => {
     }
 
     // ===== GROCERY LIST =====
-  function getPlannedMealsForWeek(weekStart) {
+ function getPlannedMealsForWeek(weekStart) {
   const weekDates = getWeekDates(weekStart);
   const meals = [];
 
@@ -1312,13 +1312,15 @@ currentWeekStartDate: (() => {
           const recipe = getRecipeById(plan[mealType]);
           if (recipe) {
             const isExternal = recipe.type === 'external';
-            meals.push({
-              date: date,
-              meal: mealType.charAt(0).toUpperCase() + mealType.slice(1),
-              recipeId: plan[mealType],
-              recipeTitle: recipe.title,
-              isExternal: isExternal
-            });
+            // Only add non-external meals (meals with actual ingredients)
+            if (!isExternal) {
+              meals.push({
+                date: date,
+                meal: mealType.charAt(0).toUpperCase() + mealType.slice(1),
+                recipeId: plan[mealType],
+                recipeTitle: recipe.title
+              });
+            }
           }
         }
       });
@@ -1327,7 +1329,6 @@ currentWeekStartDate: (() => {
 
   return meals;
 }
-
     function getGroceryList() {
       const aggregated = {};
 
@@ -2976,17 +2977,11 @@ ${(r.timesCooked || 0) > 0 ? `
                   ${formatDateDisplay(meal.date)} - ${meal.meal}
                 </div>
               </div>
-             ${meal.isExternal ? `
-                <div style="color: ${CONFIG.text_color}; opacity: 0.6; font-size: ${CONFIG.font_size * 0.9}px; font-style: italic;">
-                  🍴 External Meal (No ingredients)
-                </div>
-              ` : `
-                <button type="button" onclick="openGroceryIngredientPicker('${meal.date}', '${meal.meal}', '${meal.recipeId}')"
-                        style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                        class="px-4 py-2 rounded button-hover">
-                  Choose Ingredients
-                </button>
-              `}
+           <button type="button" onclick="openGroceryIngredientPicker('${meal.date}', '${meal.meal}', '${meal.recipeId}')"
+                      style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                      class="px-4 py-2 rounded button-hover">
+                Choose Ingredients
+              </button>
             </div>
           `).join('')}
         </div>
