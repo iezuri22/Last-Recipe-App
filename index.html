@@ -3021,15 +3021,24 @@ ${(r.timesCooked || 0) > 0 ? `
 
   return `
     <div class="p-6 max-w-4xl mx-auto">
-      <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
         <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
           ${CONFIG.grocery_list_label}
         </h2>
-        <button type="button" onclick="navigateTo('grocery-select-meals');"
-                style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                class="px-4 py-2 rounded button-hover">
-          Select Meals
-        </button>
+        <div class="flex gap-2">
+          ${groceryList.length > 0 ? `
+            <button type="button" onclick="if(confirm('Delete all items from grocery list?')) clearAllGroceryItems();"
+                    style="background:#dc2626; color:white; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                    class="px-4 py-2 rounded button-hover">
+              Delete All
+            </button>
+          ` : ''}
+          <button type="button" onclick="navigateTo('grocery-select-meals');"
+                  style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                  class="px-4 py-2 rounded button-hover">
+            Select Meals
+          </button>
+        </div>
       </div>
 
       ${groceryList.length === 0 ? `
