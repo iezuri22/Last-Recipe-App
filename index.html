@@ -279,13 +279,14 @@
     const SOURCE_TYPES = ['user', 'chefiq'];
     const STORAGE_KEY = 'meal_planner_data_v1';
 
-    // State
+  // State
 
     const state = {
   recipes: [],
   planData: [],
   mealSelections: [],
   groceryItems: [],
+  externalMealTypes: ['Eating Out', 'Takeout/Delivery', 'Leftovers', 'At Family/Friends', 'Work Lunch', 'Meal Prep'],
   currentView: 'home',
   recipeForm: null,
   selectedDayForRecipe: null,
@@ -624,6 +625,11 @@ currentWeekStartDate: (() => {
 
     // ===== RECIPE HELPERS =====
     function getRecipeById(id) {
+      if (id && id.startsWith('external_')) {
+        // Load external meal from storage
+        const externalMeals = storage._data.filter(d => d.type === 'external');
+        return externalMeals.find(m => m.id === id);
+      }
       return state.recipes.find(r => r.__backendId === id || r.id === id);
     }
 
@@ -1181,6 +1187,50 @@ currentWeekStartDate: (() => {
         state.isLoading = false;
         render();
       }
+   }
+
+    async function saveExternalMeal(date, meal, externalType) {
+      const planId = `plan_${date}`;
+      let plan = state.planData.find(p => p.date === date);
+
+      state.isLoading = true;
+      render();
+
+      const mealKey = meal.toLowerCase();
+      const externalMealId = `external_${externalType}_${Date.now()}`;
+
+      try {
+        if (plan) {
+          const updatedPlan = { ...plan, [mealKey]: externalMealId };
+          await storage.update(updatedPlan);
+        } else {
+          if (state.planData.length >= 999) {
+            showError('Maximum limit of 999 plans reached');
+            return;
+          }
+          const newPlan = {
+            id: planId,
+            date: date,
+            breakfast: mealKey === 'breakfast' ? externalMealId : null,
+            lunch: mealKey === 'lunch' ? externalMealId : null,
+            dinner: mealKey === 'dinner' ? externalMealId : null
+          };
+          await storage.create(newPlan);
+        }
+        
+        // Create external meal record
+        const externalMeal = {
+          id: externalMealId,
+          type: 'external',
+          externalType: externalType,
+          title: externalType
+        };
+        await storage.create(externalMeal);
+        
+      } finally {
+        state.isLoading = false;
+        render();
+      }
     }
 
     async function removeMealFromPlan(date, meal) {
@@ -1220,6 +1270,20 @@ currentWeekStartDate: (() => {
     if (app) app.scrollTop = 0;
   }, 0);
 }
+
+    function openExternalMealPicker(date, meal) {
+      state.selectedDayForRecipe = date;
+      state.selectedMealForRecipe = meal;
+      state.currentView = 'external-meal-picker';
+      render();
+    }
+
+    async function handleExternalMealSelect(externalType) {
+      await saveExternalMeal(state.selectedDayForRecipe, state.selectedMealForRecipe, externalType);
+      state.selectedDayForRecipe = null;
+      state.selectedMealForRecipe = null;
+      navigateTo('weekly-plan');
+    }
 
     async function handleRecipePickerSelect(recipeId) {
   await savePlan(state.selectedDayForRecipe, state.selectedMealForRecipe, recipeId);
@@ -1322,13 +1386,12 @@ currentWeekStartDate: (() => {
         let sel = state.mealSelections.find(s => s.id === selId);
         if (!sel) {
           const r = getRecipeById(recipeId);
-          const keys = recipeIngList(r).map(x => normalizeIngredient(x.name));
           sel = {
-            id: selId,
-            mealDate: date,
-            meal: meal,
-            includedIngredientKeys: JSON.stringify(keys)
-          };
+        id: selId,
+        mealDate: date,
+        meal: meal,
+        includedIngredientKeys: JSON.stringify([])
+      };
           await storage.create(sel);
           state.mealSelections.push(sel);
         }
@@ -1383,7 +1446,7 @@ currentWeekStartDate: (() => {
       }
     }
 
-    async function toggleGroceryItem(ingredientKey) {
+   async function toggleGroceryItem(ingredientKey) {
       let item = state.groceryItems.find(gi => gi.ingredientKey === ingredientKey);
 
       state.isLoading = true;
@@ -1411,13 +1474,72 @@ currentWeekStartDate: (() => {
       }
     }
 
+    async function removeFromGroceryList(ingredientKey) {
+      const selectionsWithIngredient = state.mealSelections.filter(sel => {
+        try {
+          const keys = JSON.parse(sel.includedIngredientKeys || '[]');
+          return keys.includes(ingredientKey);
+        } catch (e) {
+          return false;
+        }
+      });
+
+      state.isLoading = true;
+      render();
+
+      try {
+        for (const sel of selectionsWithIngredient) {
+          let keys = JSON.parse(sel.includedIngredientKeys || '[]');
+          keys = keys.filter(k => k !== ingredientKey);
+          const updatedSel = { ...sel, includedIngredientKeys: JSON.stringify(keys) };
+          await storage.update(updatedSel);
+        }
+
+        const item = state.groceryItems.find(gi => gi.ingredientKey === ingredientKey);
+        if (item) {
+          await storage.delete(item);
+        }
+
+        showToast('Ingredient removed from grocery list', 'success');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+
+    async function clearAllGroceryItems() {
+      state.isLoading = true;
+      render();
+
+      try {
+        for (const sel of state.mealSelections) {
+          await storage.delete(sel);
+        }
+
+        for (const item of state.groceryItems) {
+          await storage.delete(item);
+        }
+
+        showToast('Grocery list cleared', 'success');
+      } finally {
+        state.isLoading = false;
+        navigateTo('grocery-list');
+      }
+    }
+
     // ===== DATA HANDLER =====
-    const dataHandler = {
+
+    // ===== DATA HANDLER =====
+  const dataHandler = {
       onDataChanged(data) {
         state.recipes = data.filter(d => d.id && d.id.startsWith('recipe_'));
         state.planData = data.filter(d => d.date && d.id && d.id.startsWith('plan_'));
         state.mealSelections = data.filter(d => d.id && d.id.startsWith('mealSel_'));
         state.groceryItems = data.filter(d => d.ingredientKey);
+        const externalMealConfig = data.find(d => d.id === 'config_externalMealTypes');
+        if (externalMealConfig) {
+          state.externalMealTypes = externalMealConfig.types || state.externalMealTypes;
+        }
         render();
       }
     };
@@ -1701,7 +1823,90 @@ currentWeekStartDate: (() => {
             </button>
           </div>
         </div>
+     `);
+    }
+
+    function showManageExternalMealTypes() {
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">Manage External Meal Types</h2>
+          
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Current Types:</label>
+            <div class="space-y-2">
+              ${state.externalMealTypes.map((type, idx) => `
+                <div class="flex items-center justify-between p-2 bg-gray-100 rounded">
+                  <span>${esc(type)}</span>
+                  <button onclick="removeExternalMealType(${idx})" 
+                          class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                    Delete
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Add New Type:</label>
+            <div class="flex gap-2">
+              <input type="text" id="newExternalMealType" 
+                     class="flex-1 px-3 py-2 border rounded"
+                     placeholder="e.g., Office Cafeteria" />
+              <button onclick="addExternalMealType()" 
+                      class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Add
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-2 justify-end mt-6">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Done
+            </button>
+          </div>
+        </div>
       `);
+    }
+
+    async function addExternalMealType() {
+      const input = document.getElementById('newExternalMealType');
+      const newType = input.value.trim();
+      
+      if (!newType) {
+        showError('Please enter a meal type name');
+        return;
+      }
+
+      if (state.externalMealTypes.includes(newType)) {
+        showError('This type already exists');
+        return;
+      }
+
+      state.externalMealTypes.push(newType);
+      await saveExternalMealTypesConfig();
+      showManageExternalMealTypes();
+    }
+
+    async function removeExternalMealType(index) {
+      if (!confirm('Delete this external meal type?')) return;
+      
+      state.externalMealTypes.splice(index, 1);
+      await saveExternalMealTypesConfig();
+      showManageExternalMealTypes();
+    }
+
+    async function saveExternalMealTypesConfig() {
+      const config = {
+        id: 'config_externalMealTypes',
+        types: state.externalMealTypes
+      };
+
+      const existing = storage._data.find(d => d.id === 'config_externalMealTypes');
+      if (existing) {
+        await storage.update(config);
+      } else {
+        await storage.create(config);
+      }
     }
 
     function renderHome() {
@@ -2449,7 +2654,8 @@ ${(r.timesCooked || 0) > 0 ? `
                     const key = meal.toLowerCase();
                     const rid = plan ? plan[key] : null;
                     const r = rid ? getRecipeById(rid) : null;
-                    const img = r ? recipeThumb(r) : '';
+                    const isExternal = r && r.type === 'external';
+                    const img = (r && !isExternal) ? recipeThumb(r) : '';
                     const url = r ? (r.recipe_url || '').trim() : '';
                     const linkStart = url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" class="flex items-center gap-3">` : `<div class="flex items-center gap-3">`;
                     const linkEnd = url ? `</a>` : `</div>`;
@@ -2457,11 +2663,14 @@ ${(r.timesCooked || 0) > 0 ? `
                     return `<div class="flex items-center justify-between p-3 rounded" style="background:rgba(255,255,255,0.03);">
   <div class="flex items-center gap-3 flex-1">
     ${r ? `
-      <a href="${r.recipe_url || '#'}" target="_blank" rel="noopener noreferrer"
+      <a href="${isExternal ? '#' : (r.recipe_url || '#')}" ${isExternal ? '' : 'target="_blank" rel="noopener noreferrer"'}
+         ${isExternal ? 'onclick="return false;"' : ''}
          onclick="event.stopPropagation();"
          class="flex items-center gap-3 flex-1"
-         style="text-decoration: none; color: inherit; cursor: pointer;">
-        ${img ? `
+         style="text-decoration: none; color: inherit; cursor: ${isExternal ? 'default' : 'pointer'};">
+        ${isExternal ? `
+          <div style="width:60px;height:60px;border-radius:10px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:1.8rem;">🍴</div>
+        ` : img ? `
           <img src="${esc(img)}" 
                style="width:60px;height:60px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,0.08);transition:opacity 0.2s;" 
                onmouseover="this.style.opacity='0.8'"
@@ -2504,11 +2713,18 @@ ${(r.timesCooked || 0) > 0 ? `
         Remove
       </button>` : ''}
 
-    <button type="button" onclick="event.stopPropagation(); openRecipePicker('${date}','${meal}')"
-      class="px-3 py-1 rounded button-hover"
-      style="background:${CONFIG.primary_action_color};color:${CONFIG.text_color};font-size:${CONFIG.font_size * .85}px;">
-      ${r ? 'Change' : 'Add'}
-    </button>
+   <button type="button" onclick="event.stopPropagation(); openRecipePicker('${date}','${meal}')"
+                      class="px-3 py-1 rounded button-hover"
+                      style="background:${CONFIG.primary_action_color};color:${CONFIG.text_color};font-size:${CONFIG.font_size * .85}px;">
+                      ${r ? 'Change' : 'Add Recipe'}
+                    </button>
+                    ${!r ? `
+                      <button type="button" onclick="event.stopPropagation(); openExternalMealPicker('${date}','${meal}')"
+                        class="px-3 py-1 rounded button-hover"
+                        style="background:${CONFIG.secondary_action_color};color:${CONFIG.text_color};font-size:${CONFIG.font_size * .85}px;">
+                        External
+                      </button>
+                    ` : ''}
   </div>
 </div>
 
@@ -2631,6 +2847,43 @@ ${(r.timesCooked || 0) > 0 ? `
       `;
     }
 
+    function renderExternalMealPicker() {
+      return `
+        <div class="p-6 max-w-4xl mx-auto">
+          <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
+            <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
+              External Meal for ${formatDateDisplay(state.selectedDayForRecipe)} - ${state.selectedMealForRecipe}
+            </h2>
+            <button type="button" onclick="navigateTo('weekly-plan'); state.selectedDayForRecipe=null; state.selectedMealForRecipe=null;"
+              style="background: ${CONFIG.secondary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+              class="px-4 py-2 rounded button-hover">
+              Cancel
+            </button>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-3">
+            ${state.externalMealTypes.map(type => `
+              <button type="button"
+                      onclick="handleExternalMealSelect('${esc(type)}')"
+                      style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size * 1.1}px;"
+                      class="p-6 rounded card-hover text-left flex items-center gap-3">
+                <span style="font-size: 2rem;">🍴</span>
+                <span class="font-semibold">${esc(type)}</span>
+              </button>
+            `).join('')}
+          </div>
+
+          <div class="mt-6">
+            <button type="button" onclick="showManageExternalMealTypes()"
+              style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+              class="px-4 py-2 rounded button-hover">
+              ⚙️ Manage External Meal Types
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     function renderGroceryIngredients() {
       const r = getRecipeById(state.selectedGroceryRecipeId);
       if (!r) return `<div class="p-6">Recipe not found</div>`;
@@ -2693,17 +2946,25 @@ ${(r.timesCooked || 0) > 0 ? `
 
       return `
         <div class="p-6 max-w-4xl mx-auto">
-          <div class="flex items-center justify-between mb-6">
-            <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
-              Select Meals for Grocery List
-            </h2>
-            <button type="button" onclick="state.currentView='grocery-list'; render();"
+         <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
+          <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
+            ${CONFIG.grocery_list_label}
+          </h2>
+          <div class="flex gap-2">
+            ${groceryList.length > 0 ? `
+              <button type="button" onclick="if(confirm('Delete all items from grocery list?')) clearAllGroceryItems();"
+                      style="background:#dc2626; color:white; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                      class="px-4 py-2 rounded button-hover">
+                Delete All
+              </button>
+            ` : ''}
+            <button type="button" onclick="navigateTo('grocery-select-meals');"
                     style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
                     class="px-4 py-2 rounded button-hover">
-              Done
+              Select Meals
             </button>
           </div>
-
+        </div>
           ${plannedMeals.length === 0 ? `
             <div style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
                  class="p-8 rounded text-center">
@@ -2788,18 +3049,24 @@ ${(r.timesCooked || 0) > 0 ? `
                   <div style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size * 1.05}px; opacity: 0.8; font-weight: 600; padding: 8px 0; border-bottom: 2px solid rgba(255,255,255,0.1); margin-bottom: 8px;">
                     ${esc(group)}
                   </div>
-                 ${groupedUnchecked[group].map(item => {
-                    // Capitalize first letter of each word
+                ${groupedUnchecked[group].map(item => {
                     const capitalizedName = item.name.split(' ').map(word => 
                       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                     ).join(' ');
                     
                     return `
-                    <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-                           class="flex items-center gap-3 p-3 rounded hover:bg-opacity-50 cursor-pointer">
-                      <input type="checkbox" onchange="toggleGroceryItem('${normalizeIngredient(item.name)}')">
-                      <span>${capitalizedName}</span>
-                    </label>
+                    <div style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                         class="flex items-center justify-between gap-3 p-3 rounded hover:bg-opacity-50">
+                      <label class="flex items-center gap-3 cursor-pointer flex-1">
+                        <input type="checkbox" onchange="toggleGroceryItem('${normalizeIngredient(item.name)}')">
+                        <span>${capitalizedName}</span>
+                      </label>
+                      <button type="button" onclick="removeFromGroceryList('${normalizeIngredient(item.name)}')"
+                        class="px-2 py-1 rounded button-hover"
+                        style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.85}px;">
+                        Delete
+                      </button>
+                    </div>
                   `}).join('')}
                 </div>
               `).join('')}
@@ -2865,6 +3132,9 @@ ${(r.timesCooked || 0) > 0 ? `
           break;
        case 'grocery-ingredients':
           content = renderGroceryIngredients();
+          break;
+        case 'external-meal-picker':
+          content = renderExternalMealPicker();
           break;
         case 'recipe-stats':
           content = renderRecipeStats();
