@@ -2944,10 +2944,50 @@ ${(r.timesCooked || 0) > 0 ? `
   const allMeals = getPlannedMealsForWeek(yesterdayStr);
   const plannedMeals = allMeals.slice(0, 8); // Yesterday + 7 days = 8 days
 
-      return `
-        <div class="p-6 max-w-4xl mx-auto">
-         <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
-          
+  return `
+    <div class="p-6 max-w-4xl mx-auto">
+      <div class="flex items-center justify-between mb-6">
+        <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
+          Select Meals for Grocery List
+        </h2>
+        <button type="button" onclick="state.currentView='grocery-list'; render();"
+                style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                class="px-4 py-2 rounded button-hover">
+          Done
+        </button>
+      </div>
+
+      ${plannedMeals.length === 0 ? `
+        <div style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+             class="p-8 rounded text-center">
+          No meals planned for this week
+        </div>
+      ` : `
+        <div class="grid gap-3">
+          ${plannedMeals.map(meal => `
+            <div style="background: ${CONFIG.surface_color};" class="p-4 rounded card-hover flex items-center justify-between">
+              <div>
+                <div style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size * 1.125}px;" class="font-semibold">
+                  ${meal.recipeTitle}
+                </div>
+                <div style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size * 0.875}px; font-family: ${CONFIG.font_family}, sans-serif;">
+                  ${formatDateDisplay(meal.date)} - ${meal.meal}
+                </div>
+              </div>
+              <button type="button" onclick="openGroceryIngredientPicker('${meal.date}', '${meal.meal}', '${meal.recipeId}')"
+                      style="background: ${CONFIG.primary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                      class="px-4 py-2 rounded button-hover">
+                Choose Ingredients
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function renderGroceryList() {
   const groceryList = getGroceryList();
   const unchecked = groceryList.filter(item => !item.checked);
   const checked = groceryList.filter(item => item.checked);
@@ -2973,7 +3013,7 @@ ${(r.timesCooked || 0) > 0 ? `
 
   return `
     <div class="p-6 max-w-4xl mx-auto">
-    <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
+      <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
         <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
           ${CONFIG.grocery_list_label}
         </h2>
