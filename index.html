@@ -2855,11 +2855,13 @@ ${(r.timesCooked || 0) > 0 ? `
           </div>
 
           <div class="mb-4 flex gap-4 mobile-stack">
-<input type="text" placeholder="Search recipes..."
+<input type="text" 
+                 id="recipeSearchInput"
+                 placeholder="Search recipes..."
                  style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border-color: ${CONFIG.secondary_action_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
                  class="flex-1 px-4 py-2 rounded border mobile-full"
                  value="${esc(state.searchTerm)}"
-                 oninput="state.searchTerm = this.value; setTimeout(() => render(), 100);">
+                 oninput="handleSearchInput(this.value)">
 
   <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2 whitespace-nowrap">
     <input type="checkbox" ${state.filterFavorites ? 'checked' : ''}
@@ -3187,6 +3189,32 @@ function renderGroceryList() {
     </div>
   `;
 }
+
+// ===== SEARCH HANDLER =====
+    let searchTimeout = null;
+    function handleSearchInput(value) {
+      state.searchTerm = value;
+      
+      // Cancel previous timeout
+      if (searchTimeout) clearTimeout(searchTimeout);
+      
+      // Only render after user stops typing for 300ms
+      searchTimeout = setTimeout(() => {
+        const input = document.getElementById('recipeSearchInput');
+        const cursorPos = input ? input.selectionStart : 0;
+        
+        render();
+        
+        // Restore focus and cursor position after render
+        setTimeout(() => {
+          const newInput = document.getElementById('recipeSearchInput');
+          if (newInput) {
+            newInput.focus();
+            newInput.setSelectionRange(cursorPos, cursorPos);
+          }
+        }, 0);
+      }, 300);
+    }
 
     // ===== MAIN RENDER =====
     function render() {
