@@ -2833,7 +2833,8 @@ ${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 T
   if (r.isDraft || r.isTip) return false; // Exclude drafts and tips
   if (state.filterFavorites && !r.favorite) return false;
   if (state.filterUserCreated && r.sourceType !== 'user') return false; // ← ADD THIS LINE
-if (state.recipePickerSearchTerm && !r.title.toLowerCase().includes(state.recipePickerSearchTerm.toLowerCase())) return false;  if (state.selectedCategory === 'All') return true;
+if (state.recipePickerSearchTerm && !r.title.toLowerCase().includes(state.recipePickerSearchTerm.toLowerCase())) return false;
+  if (state.selectedCategory === 'All') return true;
   return r.category === state.selectedCategory;
 });
 
