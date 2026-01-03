@@ -1275,18 +1275,19 @@ currentWeekStartDate: (() => {
       }
     }
 
-   function openRecipePicker(date, meal) {
-  // Save scroll position
-  const app = document.getElementById('app');
-  if (app && state.currentView) {
-    state.scrollPositions[state.currentView] = app.scrollTop;
-  }
-  
-  state.selectedDayForRecipe = date;
-  state.selectedMealForRecipe = meal;
-  state.selectedCategory = 'All';
-  state.currentView = 'recipe-picker';
-  render();
+  function openRecipePicker(date, meal) {
+      // Save scroll position
+      const app = document.getElementById('app');
+      if (app && state.currentView) {
+        state.scrollPositions[state.currentView] = app.scrollTop;
+      }
+      
+      state.selectedDayForRecipe = date;
+      state.selectedMealForRecipe = meal;
+      // Auto-select the matching category
+      state.selectedCategory = meal; // meal is "Breakfast", "Lunch", or "Dinner"
+      state.currentView = 'recipe-picker';
+      render();
   
   // Scroll to top for recipe picker
   setTimeout(() => {
