@@ -1275,7 +1275,7 @@ currentWeekStartDate: (() => {
       }
     }
 
-  function openRecipePicker(date, meal) {
+ function openRecipePicker(date, meal) {
       // Save scroll position
       const app = document.getElementById('app');
       if (app && state.currentView) {
@@ -1286,6 +1286,7 @@ currentWeekStartDate: (() => {
       state.selectedMealForRecipe = meal;
       // Auto-select the matching category
       state.selectedCategory = meal; // meal is "Breakfast", "Lunch", or "Dinner"
+      state.searchTerm = ''; // Clear search when opening picker
       state.currentView = 'recipe-picker';
       render();
   
@@ -1632,11 +1633,16 @@ currentWeekStartDate: (() => {
     };
 
     // ===== NAVIGATION =====
-    function navigateTo(view) {
+function navigateTo(view) {
   // Save current scroll position before navigating away
   const app = document.getElementById('app');
   if (app && state.currentView) {
     state.scrollPositions[state.currentView] = app.scrollTop;
+  }
+  
+  // Clear search term when navigating away from search pages
+  if (state.currentView === 'recipes' || state.currentView === 'recipe-picker') {
+    state.searchTerm = '';
   }
   
   state.currentView = view;
@@ -2228,11 +2234,12 @@ currentWeekStartDate: (() => {
             <div>
               <!-- Search Bar -->
               <div class="mb-4">
-                <input placeholder="🔍 Search recipes by name..."
-                  class="w-full px-4 py-3 rounded border"
-                  style="background:${CONFIG.surface_color}; color:${CONFIG.text_color}; border-color:${CONFIG.secondary_action_color}; font-size:${CONFIG.font_size}px;"
-                  value="${esc(state.searchTerm)}"
-                  oninput="state.searchTerm=this.value; render();"/>
+              <input placeholder="🔍 Search recipes by name..."
+                id="recipesPageSearchInput"
+                class="w-full px-4 py-3 rounded border"
+                style="background:${CONFIG.surface_color}; color:${CONFIG.text_color}; border-color:${CONFIG.secondary_action_color}; font-size:${CONFIG.font_size}px;"
+                value="${esc(state.searchTerm)}"
+                oninput="handleRecipesPageSearch(this.value)"/>
               </div>
 
               <!-- Results -->
@@ -3208,6 +3215,28 @@ function renderGroceryList() {
         // Restore focus and cursor position after render
         setTimeout(() => {
           const newInput = document.getElementById('recipeSearchInput');
+          if (newInput) {
+            newInput.focus();
+            newInput.setSelectionRange(cursorPos, cursorPos);
+          }
+        }, 0);
+      }, 300);
+ }
+
+    let recipesPageSearchTimeout = null;
+    function handleRecipesPageSearch(value) {
+      state.searchTerm = value;
+      
+      if (recipesPageSearchTimeout) clearTimeout(recipesPageSearchTimeout);
+      
+      recipesPageSearchTimeout = setTimeout(() => {
+        const input = document.getElementById('recipesPageSearchInput');
+        const cursorPos = input ? input.selectionStart : 0;
+        
+        render();
+        
+        setTimeout(() => {
+          const newInput = document.getElementById('recipesPageSearchInput');
           if (newInput) {
             newInput.focus();
             newInput.setSelectionRange(cursorPos, cursorPos);
