@@ -2391,8 +2391,8 @@ ${r.isTip ? `<div style="color:#667eea; font-size:${CONFIG.font_size * .8}px; fo
       return `
         <div class="p-6 max-w-5xl mx-auto">
           <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
-           <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.6}px;">
-              ${state.recipeForm.id ? (state.recipeForm.isTip ? 'Edit Tip' : 'Edit Recipe') : (state.recipeForm.isTip ? 'New Tip' : 'New Recipe')}
+         <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.6}px;">
+              ${state.recipeForm.id ? 'Edit ' : 'New '}${state.recipeForm.isTip ? 'Tip' : 'Recipe'}
             </h2>
             <div class="flex gap-2">
               <button type="button" onclick="closeRecipeEditor()"
