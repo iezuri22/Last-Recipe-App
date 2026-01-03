@@ -2422,11 +2422,11 @@ function navigateTo(view) {
                     </div>
 
                     <div class="flex gap-2 mt-3">
-                      <button type="button"
+                     <button type="button"
                         onclick="openRecipeView('${id}', null, false, true)"
                         class="flex-1 px-2 py-1.5 rounded button-hover text-center"
                         style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * .85}px;">
-                        View Tip
+                        View
                       </button>
                       <button type="button"
                         onclick="openEditRecipe('${id}')"
@@ -3480,7 +3480,7 @@ function renderGroceryList() {
             newInput.setSelectionRange(cursorPos, cursorPos);
           }
         }, 0);
-      }, 120000);
+      }, 5000);
  }
 
     let recipesPageSearchTimeout = null;
@@ -3502,7 +3502,7 @@ function renderGroceryList() {
             newInput.setSelectionRange(cursorPos, cursorPos);
           }
         }, 0);
-      }, 120000);
+      }, 5000);
     }
 
     // ===== MAIN RENDER =====
