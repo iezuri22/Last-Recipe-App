@@ -1361,14 +1361,9 @@ currentWeekStartDate: (() => {
         const parts = sel.id.split('_');
         const date = parts[1];
         const meal = parts[2];
-        const plan = state.planData.find(p => p.date === date);
-        if (!plan) return;
-
-        const mealKey = (meal || '').toLowerCase();
-        const recipeId = plan[mealKey];
-        if (!recipeId) return;
-
-        const r = getRecipeById(recipeId);
+        const recipeIdFromSel = parts.slice(3).join('_'); // Handle recipe IDs that might contain underscores
+        
+        const r = getRecipeById(recipeIdFromSel);
         if (!r) return;
 
         let keys = [];
@@ -1401,8 +1396,6 @@ currentWeekStartDate: (() => {
 
       return Object.values(aggregated);
     }
-    
-
  
     function openGroceryIngredientPicker(date, meal, recipeId) {
       state.selectedGroceryDate = date;
@@ -1410,16 +1403,17 @@ currentWeekStartDate: (() => {
       state.selectedGroceryRecipeId = recipeId;
 
       (async () => {
-        const selId = `mealSel_${date}_${meal}`;
+        const selId = `mealSel_${date}_${meal}_${recipeId}`;
         let sel = state.mealSelections.find(s => s.id === selId);
         if (!sel) {
           const r = getRecipeById(recipeId);
           sel = {
-        id: selId,
-        mealDate: date,
-        meal: meal,
-        includedIngredientKeys: JSON.stringify([])
-      };
+            id: selId,
+            mealDate: date,
+            meal: meal,
+            recipeId: recipeId,
+            includedIngredientKeys: JSON.stringify([])
+          };
           await storage.create(sel);
           state.mealSelections.push(sel);
         }
@@ -1429,7 +1423,7 @@ currentWeekStartDate: (() => {
     }
 
     async function toggleMealIngredient(ingredientKey) {
-      const selId = `mealSel_${state.selectedGroceryDate}_${state.selectedGroceryMeal}`;
+      const selId = `mealSel_${state.selectedGroceryDate}_${state.selectedGroceryMeal}_${state.selectedGroceryRecipeId}`;
       let sel = state.mealSelections.find(s => s.id === selId);
 
       let includedKeys = [];
@@ -1460,11 +1454,49 @@ currentWeekStartDate: (() => {
             showError('Maximum limit reached');
             return;
           }
+        const newSel = {
+            id: selId,
+            mealDate: state.selectedGroceryDate,
+            meal: state.selectedGroceryMeal,
+            recipeId: state.selectedGroceryRecipeId,
+            includedIngredientKeys: JSON.stringify(includedKeys)
+          };
+          await storage.create(newSel);
+        }
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+   }
+
+    async function toggleAllIngredients(deselectAll) {
+      const r = getRecipeById(state.selectedGroceryRecipeId);
+      if (!r) return;
+      
+      const selId = `mealSel_${state.selectedGroceryDate}_${state.selectedGroceryMeal}_${state.selectedGroceryRecipeId}`;
+      let sel = state.mealSelections.find(s => s.id === selId);
+      
+      const allIngredients = recipeIngList(r);
+      const newKeys = deselectAll ? [] : allIngredients.map(x => normalizeIngredient(x.name));
+
+      state.isLoading = true;
+      render();
+
+      try {
+        if (sel) {
+          const updatedSel = { ...sel, includedIngredientKeys: JSON.stringify(newKeys) };
+          await storage.update(updatedSel);
+        } else {
+          if (state.mealSelections.length >= 999) {
+            showError('Maximum limit reached');
+            return;
+          }
           const newSel = {
             id: selId,
             mealDate: state.selectedGroceryDate,
             meal: state.selectedGroceryMeal,
-            includedIngredientKeys: JSON.stringify(includedKeys)
+            recipeId: state.selectedGroceryRecipeId,
+            includedIngredientKeys: JSON.stringify(newKeys)
           };
           await storage.create(newSel);
         }
@@ -2945,8 +2977,7 @@ ${(r.timesCooked || 0) > 0 ? `
       if (!r) return `<div class="p-6">Recipe not found</div>`;
 
       const list = recipeIngList(r);
-      const selId = `mealSel_${state.selectedGroceryDate}_${state.selectedGroceryMeal}`;
-      const sel = state.mealSelections.find(s => s.id === selId);
+const selId = `mealSel_${state.selectedGroceryDate}_${state.selectedGroceryMeal}_${state.selectedGroceryRecipeId}`;      const sel = state.mealSelections.find(s => s.id === selId);
 
       let keys = [];
       try {
