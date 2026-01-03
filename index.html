@@ -276,6 +276,7 @@
 
     const ING_GROUPS = ['Produce', 'Beef', 'Poultry', 'Pork', 'Lamb & Goat', 'Seafood', 'Dairy & Eggs', 'Grains & Pasta', 'Pantry', 'Spices & Seasonings', 'Prepared', 'Other'];
     const MEAL_CATEGORIES = ['Breakfast', 'Lunch', 'Dinner', 'Appetizer'];
+    const TIP_CATEGORIES = ['Prep Techniques', 'Cleaning & Washing', 'Cutting & Slicing', 'Defrosting', 'Seasoning', 'Cooking Methods', 'Storage', 'Other'];
     const SOURCE_TYPES = ['user', 'chefiq'];
     const STORAGE_KEY = 'meal_planner_data_v1';
 
@@ -667,6 +668,7 @@ currentWeekStartDate: (() => {
     type: 'recipe',
     title: '',
     category: 'Breakfast',
+    tipCategory: 'Prep Techniques',
     recipe_url: '',
     image_url: '',
     tags: '',
@@ -964,6 +966,7 @@ currentWeekStartDate: (() => {
    function openNewTip() {
       state.recipeForm = newRecipeDraft();
       state.recipeForm.isTip = true;
+      state.recipeForm.category = 'Prep Techniques';
       state.currentView = 'recipe-edit';
       render();
     }
@@ -1015,9 +1018,9 @@ currentWeekStartDate: (() => {
       const cat = (state.recipeForm.category || '').trim();
       const url = (state.recipeForm.recipe_url || '').trim();
 
-      if (!title) return showError('Recipe Title is required.');
+      if (!title) return showError(state.recipeForm.isTip ? 'Tip Title is required.' : 'Recipe Title is required.');
       if (!cat) return showError('Category is required.');
-      if (!url) return showError('Recipe URL is required.');
+      if (!state.recipeForm.isTip && !url) return showError('Recipe URL is required.');
 
       const rows = (state.recipeForm.ingredientsRows || [])
         .map(r => ({
@@ -1028,8 +1031,7 @@ currentWeekStartDate: (() => {
         }))
         .filter(r => r.name);
 
-      if (!rows.length) return showError('Add at least 1 ingredient.');
-
+if (!state.recipeForm.isTip && !rows.length) return showError('Add at least 1 ingredient.');
       const payload = {
         ...state.recipeForm,
         title,
@@ -2541,39 +2543,54 @@ ${r.isTip ? `<div style="color:#667eea; font-size:${CONFIG.font_size * .8}px; fo
             </div>
           </div>
 
-          <div class="rounded p-6" style="background:${CONFIG.surface_color};">
-            <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">Recipe Title *</label>
+        <div class="rounded p-6" style="background:${CONFIG.surface_color};">
+            <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">${state.recipeForm.isTip ? 'Tip Title' : 'Recipe Title'} *</label>
             <input class="w-full px-4 py-3 rounded border"
               style="background:rgba(0,0,0,0.18); color:${CONFIG.text_color}; border-color:rgba(255,255,255,0.12);"
               value="${esc(state.recipeForm.title || '')}"
               oninput="setRecipeField('title', this.value)" />
 
-            <div class="grid md:grid-cols-2 gap-4 mt-5">
-              <div>
+            ${state.recipeForm.isTip ? `
+              <div class="mt-5">
                 <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">Category *</label>
                 <select class="w-full px-4 py-3 rounded border"
                   style="background:rgba(0,0,0,0.18); color:${CONFIG.text_color}; border-color:rgba(255,255,255,0.12);"
                   onchange="setRecipeField('category', this.value)">
-                  ${MEAL_CATEGORIES.map(c => `
+                  ${TIP_CATEGORIES.map(c => `
                     <option value="${c}" ${state.recipeForm.category === c ? 'selected' : ''}>${c}</option>
                   `).join('')}
                 </select>
               </div>
+            ` : `
+              <div class="grid md:grid-cols-2 gap-4 mt-5">
+                <div>
+                  <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">Category *</label>
+                  <select class="w-full px-4 py-3 rounded border"
+                    style="background:rgba(0,0,0,0.18); color:${CONFIG.text_color}; border-color:rgba(255,255,255,0.12);"
+                    onchange="setRecipeField('category', this.value)">
+                    ${MEAL_CATEGORIES.map(c => `
+                      <option value="${c}" ${state.recipeForm.category === c ? 'selected' : ''}>${c}</option>
+                    `).join('')}
+                  </select>
+                </div>
 
-              <div>
-                <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">Source Type</label>
-                <select class="w-full px-4 py-3 rounded border"
-                  style="background:rgba(0,0,0,0.18); color:${CONFIG.text_color}; border-color:rgba(255,255,255,0.12);"
-                  onchange="setRecipeField('sourceType', this.value)">
-                  <option value="user" ${(state.recipeForm.sourceType || 'user') === 'user' ? 'selected' : ''}>User-Created</option>
-                  <option value="chefiq" ${state.recipeForm.sourceType === 'chefiq' ? 'selected' : ''}>ChefIQ Guided</option>
-                </select>
+                <div>
+                  <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">Source Type</label>
+                  <select class="w-full px-4 py-3 rounded border"
+                    style="background:rgba(0,0,0,0.18); color:${CONFIG.text_color}; border-color:rgba(255,255,255,0.12);"
+                    onchange="setRecipeField('sourceType', this.value)">
+                    <option value="user" ${(state.recipeForm.sourceType || 'user') === 'user' ? 'selected' : ''}>User-Created</option>
+                    <option value="chefiq" ${state.recipeForm.sourceType === 'chefiq' ? 'selected' : ''}>ChefIQ Guided</option>
+                  </select>
+                </div>
               </div>
-            </div>
+            `}
 
             <div class="mt-5">
-              <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">Recipe URL *</label>
+              <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">${state.recipeForm.isTip ? 'Reference URL (optional)' : 'Recipe URL *'}</label>
               <input class="w-full px-4 py-3 rounded border" placeholder="https://..."
+
+       
                 style="background:rgba(0,0,0,0.18); color:${CONFIG.text_color}; border-color:rgba(255,255,255,0.12);"
                 value="${esc(state.recipeForm.recipe_url || '')}"
                 oninput="setRecipeField('recipe_url', this.value)" />
@@ -2649,8 +2666,7 @@ ${r.isTip ? `<div style="color:#667eea; font-size:${CONFIG.font_size * .8}px; fo
                 </div>` : ''}
             </div>
 
-            ${renderIngredientGrid()}
-
+${state.recipeForm.isTip ? '' : renderIngredientGrid()}
             <div class="mt-6">
               <label class="block mb-2 font-semibold" style="color:${CONFIG.text_color};">Tags (optional)</label>
               <input class="w-full px-4 py-3 rounded border" placeholder="e.g. Mediterranean, High Protein"
