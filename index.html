@@ -1931,24 +1931,7 @@ function navigateTo(view) {
    `);
     }
 
-    async function addExternalMealType() {
-        <div style="color: #1a1a2e;">
-          <h2 class="text-2xl font-bold mb-4">Manage External Meal Types</h2>
-          
-          <div class="mb-4">
-            <label class="block mb-2 font-semibold">Current Types:</label>
-            <div class="space-y-2">
-              ${state.externalMealTypes.map((type, idx) => `
-                <div class="flex items-center justify-between p-2 bg-gray-100 rounded">
-                  <span>${esc(type)}</span>
-                  <button onclick="removeExternalMealType(${idx})" 
-                          class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
-                    Delete
-                  </button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
+  
 
           <div class="mb-4">
             <label class="block mb-2 font-semibold">Add New Type:</label>
