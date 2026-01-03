@@ -293,6 +293,7 @@
   selectedMealForRecipe: null,
   selectedCategory: 'All',
   searchTerm: '',
+  recipePickerSearchTerm: '',
   filterFavorites: false,
   filterUserCreated: false,  // ← ADD THIS LINE
   filterSourceType: 'all',
@@ -1286,7 +1287,7 @@ currentWeekStartDate: (() => {
       state.selectedMealForRecipe = meal;
       // Auto-select the matching category
       state.selectedCategory = meal; // meal is "Breakfast", "Lunch", or "Dinner"
-      state.searchTerm = ''; // Clear search when opening picker
+      state.recipePickerSearchTerm = ''; // Clear recipe picker search
       state.currentView = 'recipe-picker';
       render();
   
@@ -1640,12 +1641,7 @@ function navigateTo(view) {
     state.scrollPositions[state.currentView] = app.scrollTop;
   }
   
-  // Clear search term when navigating away from search pages
-  if (state.currentView === 'recipes' || state.currentView === 'recipe-picker') {
-    state.searchTerm = '';
-  }
-  
-  state.currentView = view;
+ state.currentView = view;
   render();
   
   // Restore scroll position for the new view
@@ -2843,8 +2839,7 @@ ${(r.timesCooked || 0) > 0 ? `
   if (r.isDraft) return false; // Exclude drafts
   if (state.filterFavorites && !r.favorite) return false;
   if (state.filterUserCreated && r.sourceType !== 'user') return false; // ← ADD THIS LINE
-  if (state.searchTerm && !r.title.toLowerCase().includes(state.searchTerm.toLowerCase())) return false;
-  if (state.selectedCategory === 'All') return true;
+if (state.recipePickerSearchTerm && !r.title.toLowerCase().includes(state.recipePickerSearchTerm.toLowerCase())) return false;  if (state.selectedCategory === 'All') return true;
   return r.category === state.selectedCategory;
 });
 
@@ -2867,7 +2862,7 @@ ${(r.timesCooked || 0) > 0 ? `
                  placeholder="Search recipes..."
                  style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border-color: ${CONFIG.secondary_action_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
                  class="flex-1 px-4 py-2 rounded border mobile-full"
-                 value="${esc(state.searchTerm)}"
+                 value="${esc(state.recipePickerSearchTerm)}"
                  oninput="handleSearchInput(this.value)">
 
   <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2 whitespace-nowrap">
@@ -3200,13 +3195,13 @@ function renderGroceryList() {
 // ===== SEARCH HANDLER =====
     let searchTimeout = null;
     function handleSearchInput(value) {
-      state.searchTerm = value;
+      state.recipePickerSearchTerm = value;
       
       // Cancel previous timeout
       if (searchTimeout) clearTimeout(searchTimeout);
       
       // Only render after user stops typing for 300ms
-      searchTimeout = setTimeout(() => {
+   searchTimeout = setTimeout(() => {
         const input = document.getElementById('recipeSearchInput');
         const cursorPos = input ? input.selectionStart : 0;
         
@@ -3220,7 +3215,7 @@ function renderGroceryList() {
             newInput.setSelectionRange(cursorPos, cursorPos);
           }
         }, 0);
-      }, 300);
+      }, 500);
  }
 
     let recipesPageSearchTimeout = null;
@@ -3229,7 +3224,7 @@ function renderGroceryList() {
       
       if (recipesPageSearchTimeout) clearTimeout(recipesPageSearchTimeout);
       
-      recipesPageSearchTimeout = setTimeout(() => {
+     recipesPageSearchTimeout = setTimeout(() => {
         const input = document.getElementById('recipesPageSearchInput');
         const cursorPos = input ? input.selectionStart : 0;
         
@@ -3242,7 +3237,7 @@ function renderGroceryList() {
             newInput.setSelectionRange(cursorPos, cursorPos);
           }
         }, 0);
-      }, 300);
+      }, 500);
     }
 
     // ===== MAIN RENDER =====
