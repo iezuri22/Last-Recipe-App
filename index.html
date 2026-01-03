@@ -1675,6 +1675,13 @@ function navigateTo(view) {
     state.scrollPositions[state.currentView] = app.scrollTop;
   }
   
+  // Clear viewing flags when navigating
+  if (view !== 'recipe-view') {
+    state.viewingFromPlan = null;
+    state.viewingFromStats = false;
+    state.viewingFromTips = false;
+  }
+  
  state.currentView = view;
   render();
   
@@ -1808,17 +1815,17 @@ function navigateTo(view) {
                       </button>
                     </div>
 
-                    <div class="flex gap-2 mt-3">
+                   <div class="flex gap-2 mt-3">
                       <button type="button"
-                        onclick="event.stopPropagation(); publishTip('${id}')"
+                        onclick="event.stopPropagation(); openRecipeView('${id}', null, false, true)"
                         class="flex-1 px-2 py-1.5 rounded button-hover text-center"
-                        style="background:#16a34a; color:white; font-size:${CONFIG.font_size * .85}px;">
-                        Convert to Recipe
+                        style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * .85}px;">
+                        View
                       </button>
                       <button type="button"
                         onclick="event.stopPropagation(); openEditRecipe('${id}')"
                         class="flex-1 px-2 py-1.5 rounded button-hover text-center"
-                        style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * .85}px;">
+                        style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * .85}px;">
                         Edit
                       </button>
                       <button type="button"
