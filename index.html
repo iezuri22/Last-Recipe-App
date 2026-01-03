@@ -297,8 +297,8 @@
   filterFavorites: false,
   filterUserCreated: false,  // ← ADD THIS LINE
   filterSourceType: 'all',
-  filterIngredientGroup: 'all',
-  showDrafts: false,
+filterIngredientGroup: 'all',
+  showTips: false,
   selectedGroceryDate: null,
   selectedGroceryMeal: null,
   selectedGroceryRecipeId: null,
@@ -674,8 +674,9 @@ currentWeekStartDate: (() => {
     instructions: '',
     ingredientsRows: [{ qty: '', unit: '', name: '', group: 'Produce' }],
     sourceType: 'chefiq',
-    isDraft: false,
-    timesCooked: 0  // ← ADD THIS LINE
+  isDraft: false,
+    isTip: false,
+    timesCooked: 0
   };
 }
 
@@ -960,9 +961,9 @@ currentWeekStartDate: (() => {
       render();
     }
 
-    function openNewDraft() {
+   function openNewTip() {
       state.recipeForm = newRecipeDraft();
-      state.recipeForm.isDraft = true;
+      state.recipeForm.isTip = true;
       state.currentView = 'recipe-edit';
       render();
     }
@@ -1050,26 +1051,25 @@ currentWeekStartDate: (() => {
           payload.id = `recipe_${Date.now()}_${Math.random().toString(36).slice(2)}`;
           await storage.create(payload);
         }
-        showToast(payload.isDraft ? 'Draft saved!' : 'Recipe saved!', 'success');
-        closeRecipeEditor();
+showToast(payload.isTip ? 'Tip saved!' : 'Recipe saved!', 'success');        closeRecipeEditor();
       } catch (e) {
         console.error(e);
         showError('Failed to save recipe.');
       }
     }
 
-    async function publishDraft(recipeId) {
+  async function publishTip(recipeId) {
       const recipe = getRecipeById(recipeId);
       if (!recipe) return;
 
-      const updatedRecipe = { ...recipe, isDraft: false };
+      const updatedRecipe = { ...recipe, isTip: false };
       
       try {
         await storage.update(updatedRecipe);
-        showToast('Draft published!', 'success');
+        showToast('Tip converted to recipe!', 'success');
       } catch (e) {
         console.error(e);
-        showError('Failed to publish draft.');
+        showError('Failed to convert tip.');
       }
     }
 
@@ -1366,6 +1366,19 @@ currentWeekStartDate: (() => {
         const meal = parts[2];
         const recipeIdFromSel = parts.slice(3).join('_'); // Handle recipe IDs that might contain underscores
         
+      // Handle manual items
+        if (recipeIdFromSel === 'manual' && sel.manualItem) {
+          const k = normalizeIngredient(sel.manualItem.name);
+          aggregated[k] = {
+            name: sel.manualItem.name,
+            quantity: '',
+            unit: '',
+            group: sel.manualItem.group || 'Other',
+            checked: false
+          };
+          return;
+        }
+
         const r = getRecipeById(recipeIdFromSel);
         if (!r) return;
 
@@ -1707,9 +1720,9 @@ function navigateTo(view) {
     state.showOnlyCookedRecipes = true; // Default to showing only cooked recipes
   }
   
-  // Get all published recipes sorted by times cooked
+// Get all published recipes sorted by times cooked
   let sortedRecipes = state.recipes
-    .filter(r => !r.isDraft)
+    .filter(r => !r.isDraft && !r.isTip)
     .sort((a, b) => (b.timesCooked || 0) - (a.timesCooked || 0));
   
   // Apply filter if enabled
@@ -1915,8 +1928,10 @@ function navigateTo(view) {
      `);
     }
 
-    function showManageExternalMealTypes() {
-      openModal(`
+   `);
+    }
+
+    async function addExternalMealType() {
         <div style="color: #1a1a2e;">
           <h2 class="text-2xl font-bold mb-4">Manage External Meal Types</h2>
           
@@ -2064,16 +2079,15 @@ function navigateTo(view) {
 
     function renderRecipes() {
       // Filter recipes based on draft status
-      let list = state.showDrafts 
-        ? state.recipes.filter(r => r.isDraft)
-        : state.recipes.filter(r => !r.isDraft);
+   let list = state.showTips 
+        ? state.recipes.filter(r => r.isTip)
+        : state.recipes.filter(r => !r.isDraft && !r.isTip);
 
       // Apply other filters
       list = list.filter(r => {
         if (state.filterFavorites && !r.favorite) return false;
         if (state.filterSourceType !== 'all' && r.sourceType !== state.filterSourceType) return false;
-        if (!state.showDrafts && state.selectedCategory !== 'All' && r.category !== state.selectedCategory) return false;
-        if (state.searchTerm && !(r.title || '').toLowerCase().includes(state.searchTerm.toLowerCase())) return false;
+        if (!state.showTips && state.selectedCategory !== 'All' && r.category !== state.selectedCategory) return false; if (state.searchTerm && !(r.title || '').toLowerCase().includes(state.searchTerm.toLowerCase())) return false;
         
         // Filter by ingredient group
         if (state.filterIngredientGroup !== 'all') {
@@ -2085,8 +2099,8 @@ function navigateTo(view) {
         return true;
       });
 
-      const draftCount = state.recipes.filter(r => r.isDraft).length;
-      const publishedCount = state.recipes.filter(r => !r.isDraft).length;
+   const tipsCount = state.recipes.filter(r => r.isTip).length;
+      const publishedCount = state.recipes.filter(r => !r.isDraft && !r.isTip).length;
 
       return `
                   <div class="p-6 max-w-7xl mx-auto fade-in">
@@ -2096,15 +2110,15 @@ function navigateTo(view) {
               <h2 class="font-bold flex items-center gap-2" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.8}px;">
                 <span>📚</span> ${CONFIG.recipes_label}
               </h2>
-              <p style="color:${CONFIG.text_color}; opacity:0.6; font-size:${CONFIG.font_size * 0.95}px; margin-top:4px;">
-                ${publishedCount} published • ${draftCount} drafts
+            <p style="color:${CONFIG.text_color}; opacity:0.6; font-size:${CONFIG.font_size * 0.95}px; margin-top:4px;">
+                ${publishedCount} recipes • ${tipsCount} tips
               </p>
             </div>
             <div class="flex gap-3">
-              <button type="button" onclick="openNewDraft()"
+             <button type="button" onclick="openNewTip()"
                 class="px-5 py-2.5 rounded-xl button-hover flex items-center gap-2"
                 style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px; box-shadow: 0 2px 8px rgba(118, 75, 162, 0.3);">
-                <span>💾</span> Save as Draft
+                <span>📝</span> Save as Tip
               </button>
               <button type="button" onclick="openNewRecipe()"
                 class="px-5 py-2.5 rounded-xl button-hover flex items-center gap-2"
@@ -2124,17 +2138,17 @@ function navigateTo(view) {
                   <span>📂</span> View
                 </h3>
                 <div class="space-y-2">
-                  <button type="button" 
-                    onclick="state.showDrafts = false; state.selectedCategory = 'All'; render();"
+                 <button type="button" 
+                    onclick="state.showTips = false; state.selectedCategory = 'All'; render();"
                     class="w-full px-3 py-2 rounded text-left button-hover transition-all"
-                    style="background:${!state.showDrafts ? CONFIG.primary_action_color : 'rgba(255,255,255,0.05)'}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">
-                    📚 Published <span style="opacity:0.6;">(${publishedCount})</span>
+                    style="background:${!state.showTips ? CONFIG.primary_action_color : 'rgba(255,255,255,0.05)'}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">
+                    📚 Recipes <span style="opacity:0.6;">(${publishedCount})</span>
                   </button>
                   <button type="button" 
-                    onclick="state.showDrafts = true; state.selectedCategory = 'All'; render();"
+                    onclick="state.showTips = true; state.selectedCategory = 'All'; render();"
                     class="w-full px-3 py-2 rounded text-left button-hover transition-all"
-                    style="background:${state.showDrafts ? CONFIG.primary_action_color : 'rgba(255,255,255,0.05)'}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">
-                    📝 Drafts <span style="opacity:0.6;">(${draftCount})</span>
+                    style="background:${state.showTips ? CONFIG.primary_action_color : 'rgba(255,255,255,0.05)'}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">
+                    📝 Tips & Notes <span style="opacity:0.6;">(${tipsCount})</span>
                   </button>
                 </div>
               </div>
@@ -2242,11 +2256,11 @@ function navigateTo(view) {
               ${list.length === 0 ? `
                 <div class="p-12 rounded text-center" style="background:${CONFIG.surface_color}; color:${CONFIG.text_color};">
                   <div style="font-size:3rem; margin-bottom:1rem;">📭</div>
-                  <div style="font-size:${CONFIG.font_size * 1.2}px; margin-bottom:0.5rem;">
-                    ${state.showDrafts ? 'No drafts found' : 'No recipes found'}
+                <div style="font-size:${CONFIG.font_size * 1.2}px; margin-bottom:0.5rem;">
+                    ${state.showTips ? 'No tips found' : 'No recipes found'}
                   </div>
-                  <div style="opacity:0.7; font-size:${CONFIG.font_size * 0.9}px;">
-                    ${state.searchTerm ? 'Try adjusting your search or filters' : state.showDrafts ? 'Start by saving a recipe as a draft' : 'Add your first recipe to get started'}
+                 <div style="opacity:0.7; font-size:${CONFIG.font_size * 0.9}px;">
+                    ${state.searchTerm ? 'Try adjusting your search or filters' : state.showTips ? 'Start by saving a tip or cooking note' : 'Add your first recipe to get started'}
                   </div>
                 </div>` : `
                 <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -2280,19 +2294,17 @@ function navigateTo(view) {
                             <div style="color:${CONFIG.text_color}; opacity:.65; font-size:${CONFIG.font_size * .85}px; margin-top:4px;">
                               ${sourceIcon} ${esc(r.category)}
                             </div>
-                            ${r.isDraft ? `<div style="color:#f59e0b; font-size:${CONFIG.font_size * .8}px; font-weight:600; margin-top:4px;">📝 DRAFT</div>` : ''}
-                          </div>
+${r.isTip ? `<div style="color:#667eea; font-size:${CONFIG.font_size * .8}px; font-weight:600; margin-top:4px;">📝 TIP</div>` : ''}                          </div>
                           <button type="button" class="text-xl"
                             onclick="event.stopPropagation(); toggleFavorite('${id}')">
                             ${r.favorite ? '⭐' : '☆'}
                           </button>
                         </div>
 
-                        <div class="flex gap-2 mt-3">
-                          ${r.isDraft ? `
+                     <div class="flex gap-2 mt-3">
+                          ${r.isTip ? `
                             <button type="button"
-                              onclick="event.stopPropagation(); publishDraft('${id}')"
-                              class="flex-1 px-2 py-1.5 rounded button-hover text-center"
+                              onclick="event.stopPropagation(); publishTip('${id}')" class="flex-1 px-2 py-1.5 rounded button-hover text-center"
                               style="background:#16a34a; color:white; font-size:${CONFIG.font_size * .85}px;">
                               Publish
                             </button>
@@ -2396,17 +2408,17 @@ function navigateTo(view) {
       return `
         <div class="p-6 max-w-5xl mx-auto">
           <div class="flex items-center justify-between mb-6 mobile-stack gap-3">
-            <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.6}px;">
-              ${state.recipeForm.id ? 'Edit Recipe' : (state.recipeForm.isDraft ? 'New Draft' : 'New Recipe')}
+           <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.6}px;">
+              ${state.recipeForm.id ? (state.recipeForm.isTip ? 'Edit Tip' : 'Edit Recipe') : (state.recipeForm.isTip ? 'New Tip' : 'New Recipe')}
             </h2>
             <div class="flex gap-2">
               <button type="button" onclick="closeRecipeEditor()"
                 class="px-4 py-2 rounded button-hover"
                 style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">Cancel</button>
-              <button type="button" onclick="saveRecipeForm()"
+            <button type="button" onclick="saveRecipeForm()"
                 class="px-4 py-2 rounded button-hover"
                 style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">
-                ${state.recipeForm.isDraft ? 'Save Draft' : 'Save Recipe'}
+                ${state.recipeForm.isTip ? 'Save Tip' : 'Save Recipe'}
               </button>
             </div>
           </div>
@@ -2549,11 +2561,11 @@ Step 3: Add wet ingredients..."
                 oninput="setRecipeField('notes', this.value)">${state.recipeForm.notes || ''}</textarea>
             </div>
 
-            <div class="mt-6">
+          <div class="mt-6">
               <label class="flex items-center gap-2" style="color:${CONFIG.text_color};">
-                <input type="checkbox" ${state.recipeForm.isDraft ? 'checked' : ''}
-                  onchange="setRecipeField('isDraft', this.checked)">
-                Save as Draft (won't appear in meal planning)
+                <input type="checkbox" ${state.recipeForm.isTip ? 'checked' : ''}
+                  onchange="setRecipeField('isTip', this.checked)">
+                Save as Tip/Note (won't appear in meal planning)
               </label>
             </div>
           </div>
@@ -2617,10 +2629,10 @@ ${(r.timesCooked || 0) > 0 ? `
                   🗑️ Remove from Plan
                 </button>
               ` : ''}
-              ${r.isDraft ? `
-                <button type="button" onclick="publishDraft('${r.__backendId || r.id}')"
+              ${r.isTip ? `
+                <button type="button" onclick="publishTip('${r.__backendId || r.id}')"
                   class="px-4 py-2 rounded button-hover"
-                  style="background:#16a34a; color:white;">Publish</button>
+                  style="background:#16a34a; color:white;">Convert to Recipe</button>
               ` : ''}
               <button type="button" onclick="openEditRecipe('${r.__backendId || r.id}')"
                 class="px-4 py-2 rounded button-hover"
@@ -2639,8 +2651,7 @@ ${(r.timesCooked || 0) > 0 ? `
                 <div style="color:${CONFIG.text_color}; opacity:.7;">
                   ${esc(r.category)} • ${sourceLabel}
                 </div>
-                ${r.isDraft ? `<div style="color:#f59e0b; font-weight:600; margin-top:8px;">📝 DRAFT - Not available for meal planning</div>` : ''}
-              </div>
+${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 TIP/NOTE - Not available for meal planning</div>` : ''}              </div>
               <button type="button" onclick="toggleFavorite('${r.__backendId || r.id}')" class="text-2xl">
                 ${r.favorite ? '⭐' : '☆'}
               </button>
@@ -2835,8 +2846,8 @@ ${(r.timesCooked || 0) > 0 ? `
       // Only show published recipes in picker
 
 
-    const filteredRecipes = state.recipes.filter(r => {
-  if (r.isDraft) return false; // Exclude drafts
+   const filteredRecipes = state.recipes.filter(r => {
+  if (r.isDraft || r.isTip) return false; // Exclude drafts and tips
   if (state.filterFavorites && !r.favorite) return false;
   if (state.filterUserCreated && r.sourceType !== 'user') return false; // ← ADD THIS LINE
 if (state.recipePickerSearchTerm && !r.title.toLowerCase().includes(state.recipePickerSearchTerm.toLowerCase())) return false;  if (state.selectedCategory === 'All') return true;
@@ -3109,7 +3120,12 @@ function renderGroceryList() {
         <h2 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.5}px; font-family: ${CONFIG.font_family}, sans-serif;" class="font-bold">
           ${CONFIG.grocery_list_label}
         </h2>
-        <div class="flex gap-2">
+       <div class="flex gap-2">
+          <button type="button" onclick="showAddManualItemModal();"
+                  style="background: ${CONFIG.secondary_action_color}; color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                  class="px-4 py-2 rounded button-hover">
+            ➕ Add Item
+          </button>
           ${groceryList.length > 0 ? `
             <button type="button" onclick="if(confirm('Delete all items from grocery list?')) clearAllGroceryItems();"
                     style="background:#dc2626; color:white; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
