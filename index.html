@@ -2854,11 +2854,11 @@ ${(r.timesCooked || 0) > 0 ? `
           </div>
 
           <div class="mb-4 flex gap-4 mobile-stack">
-  <input type="text" placeholder="Search recipes..."
-         style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border-color: ${CONFIG.secondary_action_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
-         class="flex-1 px-4 py-2 rounded border mobile-full"
-         value="${state.searchTerm}"
-         oninput="state.searchTerm = this.value; render();">
+<input type="text" placeholder="Search recipes..."
+                 style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border-color: ${CONFIG.secondary_action_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                 class="flex-1 px-4 py-2 rounded border mobile-full"
+                 value="${esc(state.searchTerm)}"
+                 oninput="state.searchTerm = this.value; setTimeout(() => render(), 100);">
 
   <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2 whitespace-nowrap">
     <input type="checkbox" ${state.filterFavorites ? 'checked' : ''}
