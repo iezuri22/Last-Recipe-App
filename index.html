@@ -2966,9 +2966,126 @@ if (state.recipePickerSearchTerm && !r.title.toLowerCase().includes(state.recipe
               class="px-4 py-2 rounded button-hover">
               ⚙️ Manage External Meal Types
             </button>
-          </div>
+         </div>
         </div>
       `;
+    }
+
+    function showManageExternalMealTypes() {
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">Manage External Meal Types</h2>
+          
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Current Types:</label>
+            <div class="space-y-2">
+              ${state.externalMealTypes.map((type, idx) => `
+                <div class="flex items-center justify-between p-2 bg-gray-100 rounded">
+                  <span>${esc(type)}</span>
+                  <button onclick="removeExternalMealType(${idx})" 
+                          class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                    Delete
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Add New Type:</label>
+            <div class="flex gap-2">
+              <input type="text" id="newExternalMealType" 
+                     class="flex-1 px-3 py-2 border rounded"
+                     placeholder="e.g., Office Cafeteria" />
+              <button onclick="addExternalMealType()" 
+                      class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Add
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-2 justify-end mt-6">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Done
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    function showAddManualItemModal() {
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">Add Manual Item</h2>
+          
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Item Name:</label>
+            <input type="text" id="manualItemName" 
+                   class="w-full px-3 py-2 border rounded"
+                   placeholder="e.g., Paper Towels, Dish Soap" />
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Category:</label>
+            <select id="manualItemGroup" class="w-full px-3 py-2 border rounded">
+              ${ING_GROUPS.map(group => `<option value="${group}">${group}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="flex gap-2 justify-end mt-6">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Cancel
+            </button>
+            <button onclick="addManualGroceryItem()" 
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              Add Item
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function addManualGroceryItem() {
+      const nameInput = document.getElementById('manualItemName');
+      const groupSelect = document.getElementById('manualItemGroup');
+      
+      const itemName = nameInput.value.trim();
+      const itemGroup = groupSelect.value;
+      
+      if (!itemName) {
+        showError('Please enter an item name');
+        return;
+      }
+
+      const ingredientKey = normalizeIngredient(itemName);
+      
+      const manualSelId = `mealSel_manual_${Date.now()}`;
+      const manualSel = {
+        id: manualSelId,
+        mealDate: 'manual',
+        meal: 'manual',
+        recipeId: 'manual',
+        manualItem: {
+          name: itemName,
+          group: itemGroup
+        },
+        includedIngredientKeys: JSON.stringify([ingredientKey])
+      };
+
+      state.isLoading = true;
+      closeModal();
+      render();
+
+      try {
+        await storage.create(manualSel);
+        showToast('Item added to grocery list!', 'success');
+      } catch (e) {
+        showError('Failed to add item');
+        console.error(e);
+      } finally {
+        state.isLoading = false;
+        render();
+      }
     }
 
     function renderGroceryIngredients() {
