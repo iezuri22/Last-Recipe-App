@@ -1787,8 +1787,12 @@ function navigateTo(view) {
       render();
     }
 
-    function openMealOptionsRecipePickerForCategory(category) {
+   function openMealOptionsRecipePickerForCategory(category) {
       state.selectedMealOptionCategory = category;
+      state.selectedCategory = category; // Auto-select category button
+      state.recipePickerSearchTerm = ''; // Clear search
+      state.filterFavorites = false; // Clear favorites filter
+      state.filterUserCreated = false; // Clear user-created filter
       state.currentView = 'meal-options-recipe-picker';
       render();
     }
@@ -1891,43 +1895,47 @@ function navigateTo(view) {
                     </button>
                   </div>
                   
-                  ${options.length === 0 ? `
+                 ${options.length === 0 ? `
                     <div class="p-6 rounded text-center" style="background:${CONFIG.surface_color}; color:${CONFIG.text_color}; opacity:0.6;">
                       No ${category.toLowerCase()} options added yet
                     </div>
                   ` : `
-                    <div style="display:flex; gap:12px; overflow-x:auto; padding-bottom:8px;">
-                      ${options.map(opt => {
-                        const recipe = getRecipeById(opt.recipeId);
-                        if (!recipe) return '';
-                        
-                        const img = recipeThumb(recipe);
-                        
-                    return `
-                          <div style="min-width:120px; max-width:120px; background:${CONFIG.surface_color}; border:1px solid rgba(255,255,255,0.08); border-radius:8px; overflow:hidden; flex-shrink:0;"
-                               class="card-hover">
-                            ${img ? `
-<div style="height:80px; overflow:hidden; cursor:pointer;" onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">                            ` : `
-<div style="height:80px; background:rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center; font-size:1.8rem; cursor:pointer;"
-                                   onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">
-                                🍽️
-                              </div>
-                            `}
-                            
-                          <div style="padding:8px;">
-                              <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.85}px; font-weight:600; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                              ${esc(recipe.title)}
+                    <div style="background:${CONFIG.surface_color}; border-radius:8px; padding:12px;">
+                      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        ${options.map(opt => {
+                          const recipe = getRecipeById(opt.recipeId);
+                          if (!recipe) return '';
+                          
+                          const img = recipeThumb(recipe);
+                          
+                          return `
+                            <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px; flex:1; min-width:250px;">
+                              ${img ? `
+                                <div style="width:60px; height:60px; flex-shrink:0; border-radius:8px; overflow:hidden; cursor:pointer;" onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">
+                                  <img src="${esc(img)}" style="width:100%; height:100%; object-fit:cover;" />
+                                </div>
+                              ` : `
+                                <div style="width:60px; height:60px; flex-shrink:0; border-radius:8px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer;"
+                                     onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">
+                                  🍽️
+                                </div>
+                              `}
+                              
+                              <div style="flex:1; min-width:0;">
+                                <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.95}px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                  ${esc(recipe.title)}
+                                </div>
                               </div>
                               
-                            <button type="button" onclick="removeMealOption('${opt.id}')"
-                                class="w-full px-2 py-1 rounded button-hover"
-                                style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.75}px;">
+                              <button type="button" onclick="removeMealOption('${opt.id}')"
+                                class="px-3 py-2 rounded button-hover flex-shrink-0"
+                                style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.85}px;">
                                 Remove
                               </button>
                             </div>
-                          </div>
-                        `;
-                      }).join('')}
+                          `;
+                        }).join('')}
+                      </div>
                     </div>
                   `}
                 </div>
@@ -1938,14 +1946,27 @@ function navigateTo(view) {
       `;
     }
 
-    function renderMealOptionsRecipePicker() {
+  function renderMealOptionsRecipePicker() {
       let recipes = state.recipes.filter(r => !r.isDraft && !r.isTip);
       
-   // Filter by selected category (from buttons or from "Add" button per category)
+      // Apply filters
+      if (state.filterFavorites) {
+        recipes = recipes.filter(r => r.favorite);
+      }
+      if (state.filterUserCreated) {
+        recipes = recipes.filter(r => r.sourceType === 'user');
+      }
+      if (state.recipePickerSearchTerm) {
+        recipes = recipes.filter(r => r.title.toLowerCase().includes(state.recipePickerSearchTerm.toLowerCase()));
+      }
+      
+      // Filter by selected category (from buttons or from "Add" button per category)
       if (state.selectedCategory !== 'All') {
         recipes = recipes.filter(r => r.category === state.selectedCategory);
       } else if (state.selectedMealOptionCategory) {
         recipes = recipes.filter(r => r.category === state.selectedMealOptionCategory);
+        // Auto-select the category button to match
+        state.selectedCategory = state.selectedMealOptionCategory;
       }
       
       return `
@@ -1959,11 +1980,31 @@ function navigateTo(view) {
               class="px-4 py-2 rounded button-hover">
               ← Back
             </button>
-         </div>
+        </div>
+
+          <div class="mb-4 flex gap-4 mobile-stack">
+            <input type="text" 
+                   id="mealOptionsSearchInput"
+                   placeholder="Search recipes..."
+                   style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border-color: ${CONFIG.secondary_action_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;"
+                   class="flex-1 px-4 py-2 rounded border mobile-full"
+                   value="${esc(state.recipePickerSearchTerm)}"
+                   oninput="handleSearchInput(this.value)">
+            <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2 whitespace-nowrap">
+              <input type="checkbox" ${state.filterFavorites ? 'checked' : ''}
+                     onchange="state.filterFavorites = this.checked; render();">
+              ⭐ Favorites Only
+            </label>
+            <label style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}, sans-serif; font-size: ${CONFIG.font_size}px;" class="flex items-center gap-2 whitespace-nowrap">
+              <input type="checkbox" ${state.filterUserCreated ? 'checked' : ''}
+                     onchange="state.filterUserCreated = this.checked; render();">
+              👤 User-Created Only
+            </label>
+          </div>
 
           <div class="mb-4">
             <div class="flex gap-2 flex-wrap">
-              <button type="button" 
+              <button type="button"
                 onclick="state.selectedCategory = 'All'; render();"
                 class="px-4 py-2 rounded button-hover"
                 style="background: ${state.selectedCategory === 'All' ? CONFIG.primary_action_color : CONFIG.surface_color}; color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 0.9}px;">
