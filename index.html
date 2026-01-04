@@ -2717,7 +2717,7 @@ function navigateTo(view) {
                   
                   ${img ? `
                     <div style="height:140px; overflow:hidden; ${r.recipe_url ? 'cursor:pointer;' : ''}" 
-${r.recipe_url ? `onclick="window.open('${esc(r.recipe_url.startsWith('http') ? r.recipe_url : 'https://' + r.recipe_url)}', '_blank')"` : ''}>
+${recipeUrl(r) ? `onclick="window.open('${esc(recipeUrl(r))}', '_blank')"` : ''}>
 <img src="${esc(img)}" style="width:100%; height:100%; object-fit:cover;" />
                     </div>
                   ` : `
