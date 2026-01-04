@@ -4230,8 +4230,11 @@ function renderGroceryByMeal(unchecked, checked) {
         `).join('')}
       </div>
     ` : ''}
-  `;
+`;
 }
+
+function renderGroceryList() {
+  const groceryList = getGroceryList();
   const unchecked = groceryList.filter(item => !item.checked);
   const checked = groceryList.filter(item => item.checked);
 
