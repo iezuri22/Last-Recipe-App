@@ -2486,21 +2486,197 @@ function navigateTo(view) {
           </p>
 
           <div class="grid md:grid-cols-3 gap-6">
-            <button type="button" onclick="navigateTo('recipes')"
-                    style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(102, 126, 234, 0.1) 100%);"
-                    class="p-8 rounded-2xl card-hover text-center glass">
-              <div style="font-size: 4rem;" class="mb-4">🍳</div>
-              <h3 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.4}px; font-family: ${CONFIG.font_family};"
-                  class="font-bold mb-3">
-                ${CONFIG.recipes_label}
-              </h3>
-              <p style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size}px; font-family: ${CONFIG.font_family};">
-                Browse and manage your recipe collection
-              </p>
-              <div class="mt-4 chip" style="background: rgba(102, 126, 234, 0.2); color: ${CONFIG.primary_action_color};">
-                ${state.recipes.length} recipes
-              </div>
-            </button>
+        <!-- Desktop: Show all cards -->
+            <div class="hidden lg:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <button type="button" onclick="navigateTo('recipes')"
+                      style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(102, 126, 234, 0.1) 100%);"
+                      class="p-8 rounded-2xl card-hover text-center glass">
+                <div style="font-size: 4rem;" class="mb-4">🍳</div>
+                <h3 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.4}px; font-family: ${CONFIG.font_family};"
+                    class="font-bold mb-3">
+                  ${CONFIG.recipes_label}
+                </h3>
+                <p style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size}px; font-family: ${CONFIG.font_family};">
+                  Browse and manage your recipe collection
+                </p>
+                <div class="mt-4 chip" style="background: rgba(102, 126, 234, 0.2); color: ${CONFIG.primary_action_color};">
+                  ${state.recipes.filter(r => !r.isDraft && !r.isTip).length} recipes
+                </div>
+              </button>
+
+              <button type="button" onclick="navigateTo('meal-options')"
+                      style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(118, 75, 162, 0.1) 100%);"
+                      class="p-8 rounded-2xl card-hover text-center glass">
+                <div style="font-size: 4rem;" class="mb-4">📋</div>
+                <h3 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.4}px; font-family: ${CONFIG.font_family};"
+                    class="font-bold mb-3">
+                  Meal Options
+                </h3>
+                <p style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size}px; font-family: ${CONFIG.font_family};">
+                  Your recipe pool for the week
+                </p>
+                <div class="mt-4 chip" style="background: rgba(118, 75, 162, 0.2); color: ${CONFIG.secondary_action_color};">
+                  ${state.mealOptions.length} options
+                </div>
+              </button>
+
+              <button type="button" onclick="navigateTo('weekly-plan')"
+                      style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(245, 158, 11, 0.1) 100%);"
+                      class="p-8 rounded-2xl card-hover text-center glass">
+                <div style="font-size: 4rem;" class="mb-4">📅</div>
+                <h3 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.4}px; font-family: ${CONFIG.font_family};"
+                    class="font-bold mb-3">
+                  ${CONFIG.weekly_plan_label}
+                </h3>
+                <p style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size}px; font-family: ${CONFIG.font_family};">
+                  Track what you've eaten
+                </p>
+                <div class="mt-4 chip" style="background: rgba(245, 158, 11, 0.2); color: ${CONFIG.accent_color};">
+                  ${state.planData.length} days tracked
+                </div>
+              </button>
+
+              <button type="button" onclick="navigateTo('tips')"
+                      style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(102, 126, 234, 0.1) 100%);"
+                      class="p-8 rounded-2xl card-hover text-center glass">
+                <div style="font-size: 4rem;" class="mb-4">📝</div>
+                <h3 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.4}px; font-family: ${CONFIG.font_family};"
+                    class="font-bold mb-3">
+                  Tips & Notes
+                </h3>
+                <p style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size}px; font-family: ${CONFIG.font_family};">
+                  Cooking techniques and helpful notes
+                </p>
+                <div class="mt-4 chip" style="background: rgba(102, 126, 234, 0.2); color: ${CONFIG.primary_action_color};">
+                  ${state.recipes.filter(r => r.isTip).length} tips
+                </div>
+              </button>
+
+              <button type="button" onclick="navigateTo('recipe-stats')"
+                      style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(34, 197, 94, 0.1) 100%);"
+                      class="p-8 rounded-2xl card-hover text-center glass">
+                <div style="font-size: 4rem;" class="mb-4">👨‍🍳</div>
+                <h3 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.4}px; font-family: ${CONFIG.font_family};"
+                    class="font-bold mb-3">
+                  Most Cooked
+                </h3>
+                <p style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size}px; font-family: ${CONFIG.font_family};">
+                  Your favorite recipes ranked
+                </p>
+                <div class="mt-4 chip" style="background: rgba(34, 197, 94, 0.2); color: #22c55e;">
+                  ${state.recipes.filter(r => (r.timesCooked || 0) > 0).length} cooked
+                </div>
+              </button>
+
+              <button type="button" onclick="navigateTo('grocery-list')"
+                      style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(239, 68, 68, 0.1) 100%);"
+                      class="p-8 rounded-2xl card-hover text-center glass">
+                <div style="font-size: 4rem;" class="mb-4">🛒</div>
+                <h3 style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.4}px; font-family: ${CONFIG.font_family};"
+                    class="font-bold mb-3">
+                  ${CONFIG.grocery_list_label}
+                </h3>
+                <p style="color: ${CONFIG.text_color}; opacity: 0.7; font-size: ${CONFIG.font_size}px; font-family: ${CONFIG.font_family};">
+                  Your shopping list
+                </p>
+                <div class="mt-4 chip" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">
+                  ${getGroceryList().length} items
+                </div>
+              </button>
+            </div>
+
+            <!-- Mobile: Compact list -->
+            <div class="lg:hidden space-y-3">
+              <button type="button" onclick="navigateTo('recipes')"
+                      style="background: ${CONFIG.surface_color}; border: 1px solid rgba(102, 126, 234, 0.3);"
+                      class="w-full p-4 rounded-xl button-hover flex items-center gap-4">
+                <div style="font-size: 2.5rem;">🍳</div>
+                <div class="flex-1 text-left">
+                  <div style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.1}px; font-weight: 600;">
+                    ${CONFIG.recipes_label}
+                  </div>
+                  <div style="color: ${CONFIG.text_color}; opacity: 0.6; font-size: ${CONFIG.font_size * 0.85}px;">
+                    ${state.recipes.filter(r => !r.isDraft && !r.isTip).length} recipes
+                  </div>
+                </div>
+                <div style="color: ${CONFIG.primary_action_color}; font-size: 1.5rem;">›</div>
+              </button>
+
+              <button type="button" onclick="navigateTo('meal-options')"
+                      style="background: ${CONFIG.surface_color}; border: 1px solid rgba(118, 75, 162, 0.3);"
+                      class="w-full p-4 rounded-xl button-hover flex items-center gap-4">
+                <div style="font-size: 2.5rem;">📋</div>
+                <div class="flex-1 text-left">
+                  <div style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.1}px; font-weight: 600;">
+                    Meal Options
+                  </div>
+                  <div style="color: ${CONFIG.text_color}; opacity: 0.6; font-size: ${CONFIG.font_size * 0.85}px;">
+                    ${state.mealOptions.length} options
+                  </div>
+                </div>
+                <div style="color: ${CONFIG.secondary_action_color}; font-size: 1.5rem;">›</div>
+              </button>
+
+              <button type="button" onclick="navigateTo('weekly-plan')"
+                      style="background: ${CONFIG.surface_color}; border: 1px solid rgba(245, 158, 11, 0.3);"
+                      class="w-full p-4 rounded-xl button-hover flex items-center gap-4">
+                <div style="font-size: 2.5rem;">📅</div>
+                <div class="flex-1 text-left">
+                  <div style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.1}px; font-weight: 600;">
+                    ${CONFIG.weekly_plan_label}
+                  </div>
+                  <div style="color: ${CONFIG.text_color}; opacity: 0.6; font-size: ${CONFIG.font_size * 0.85}px;">
+                    ${state.planData.length} days tracked
+                  </div>
+                </div>
+                <div style="color: ${CONFIG.accent_color}; font-size: 1.5rem;">›</div>
+              </button>
+
+              <button type="button" onclick="navigateTo('tips')"
+                      style="background: ${CONFIG.surface_color}; border: 1px solid rgba(102, 126, 234, 0.3);"
+                      class="w-full p-4 rounded-xl button-hover flex items-center gap-4">
+                <div style="font-size: 2.5rem;">📝</div>
+                <div class="flex-1 text-left">
+                  <div style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.1}px; font-weight: 600;">
+                    Tips & Notes
+                  </div>
+                  <div style="color: ${CONFIG.text_color}; opacity: 0.6; font-size: ${CONFIG.font_size * 0.85}px;">
+                    ${state.recipes.filter(r => r.isTip).length} tips
+                  </div>
+                </div>
+                <div style="color: ${CONFIG.primary_action_color}; font-size: 1.5rem;">›</div>
+              </button>
+
+              <button type="button" onclick="navigateTo('recipe-stats')"
+                      style="background: ${CONFIG.surface_color}; border: 1px solid rgba(34, 197, 94, 0.3);"
+                      class="w-full p-4 rounded-xl button-hover flex items-center gap-4">
+                <div style="font-size: 2.5rem;">👨‍🍳</div>
+                <div class="flex-1 text-left">
+                  <div style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.1}px; font-weight: 600;">
+                    Most Cooked
+                  </div>
+                  <div style="color: ${CONFIG.text_color}; opacity: 0.6; font-size: ${CONFIG.font_size * 0.85}px;">
+                    ${state.recipes.filter(r => (r.timesCooked || 0) > 0).length} cooked
+                  </div>
+                </div>
+                <div style="color: #22c55e; font-size: 1.5rem;">›</div>
+              </button>
+
+              <button type="button" onclick="navigateTo('grocery-list')"
+                      style="background: ${CONFIG.surface_color}; border: 1px solid rgba(239, 68, 68, 0.3);"
+                      class="w-full p-4 rounded-xl button-hover flex items-center gap-4">
+                <div style="font-size: 2.5rem;">🛒</div>
+                <div class="flex-1 text-left">
+                  <div style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 1.1}px; font-weight: 600;">
+                    ${CONFIG.grocery_list_label}
+                  </div>
+                  <div style="color: ${CONFIG.text_color}; opacity: 0.6; font-size: ${CONFIG.font_size * 0.85}px;">
+                    ${getGroceryList().length} items
+                  </div>
+                </div>
+                <div style="color: #ef4444; font-size: 1.5rem;">›</div>
+              </button>
+            </div>
 
            <button type="button" onclick="navigateTo('meal-options')"
                     style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(118, 75, 162, 0.1) 100%);"
