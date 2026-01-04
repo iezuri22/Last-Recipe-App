@@ -1708,8 +1708,7 @@ function getPlannedMealsForWeek(weekStart) {
         if (budgetConfig?.grocery) state.groceryBudget = budgetConfig.grocery;
         if (budgetConfig?.takeout) state.takeoutBudget = budgetConfig.takeout;
         const externalMealConfig = data.find(d => d.id === 'config_externalMealTypes');
-        state.externalMealTypes = externalMealConfig.types || state.externalMealTypes;
-        }
+       state.externalMealTypes = externalMealConfig?.types || state.externalMealTypes;
         render();
       }
     };
@@ -4079,9 +4078,11 @@ function renderGroceryList() {
               `}).join('')}
             </div>
           ` : ''}
-       </div>
-      `;
-    }
+     </div>
+      `}
+    </div>
+  `;
+}
 
 // ===== SEARCH HANDLER =====
     let searchTimeout = null;
