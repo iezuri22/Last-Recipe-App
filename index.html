@@ -287,9 +287,10 @@ const MEAL_CATEGORIES = ['Breakfast', 'Lunch', 'Vegetables', 'Dinner', 'Appetize
   planData: [],
  mealSelections: [],
   groceryItems: [],
-  mealOptions: [],
-  externalMealTypes: ['Eating Out', 'Takeout/Delivery', 'Leftovers', 'At Family/Friends', 'Work Lunch', 'Meal Prep'], currentView: 'home',
-  recipeForm: null,
+ mealOptions: [],
+  budgetExpenses: [], // {id, date, type: 'grocery'|'takeout', amount, note}
+  weeklyBudget: 200, // Default $200/week
+  externalMealTypes: ['Eating Out', 'Takeout/Delivery', 'Leftovers', 'At Family/Friends', 'Work Lunch', 'Meal Prep'],recipeForm: null,
   selectedDayForRecipe: null,
   selectedMealForRecipe: null,
   selectedCategory: 'All',
@@ -1700,9 +1701,11 @@ function getPlannedMealsForWeek(weekStart) {
        state.planData = planData;
         state.mealSelections = data.filter(d => d.id && d.id.startsWith('mealSel_'));
         state.groceryItems = data.filter(d => d.ingredientKey);
-        state.mealOptions = data.filter(d => d.id && d.id.startsWith('mealOption_'));
-        const externalMealConfig = data.find(d => d.id === 'config_externalMealTypes');
-        if (externalMealConfig) {
+       state.mealOptions = data.filter(d => d.id && d.id.startsWith('mealOption_'));
+        state.budgetExpenses = data.filter(d => d.id && d.id.startsWith('expense_'));
+        const budgetConfig = data.find(d => d.id === 'config_weeklyBudget');
+        if (budgetConfig?.amount) state.weeklyBudget = budgetConfig.amount;
+        const externalMealConfig = data.find(d => d.id === 'config_externalMealTypes'); if (externalMealConfig) {
           state.externalMealTypes = externalMealConfig.types || state.externalMealTypes;
         }
         render();
@@ -3189,6 +3192,175 @@ ${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 T
           </div>
         </div>`;
     }
+function showBudgetModal() {
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">💰 Set Weekly Budget</h2>
+          
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Weekly Budget:</label>
+            <div class="flex items-center gap-2">
+              <span class="text-xl">$</span>
+              <input type="number" id="budgetAmount" value="${state.weeklyBudget}" 
+                     class="flex-1 px-3 py-2 border rounded" min="0" step="10" />
+            </div>
+          </div>
+
+          <div class="flex gap-2 justify-end">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Cancel
+            </button>
+            <button onclick="saveBudget()" 
+                    class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              Save Budget
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function saveBudget() {
+      const amount = parseFloat(document.getElementById('budgetAmount').value);
+      if (isNaN(amount) || amount < 0) {
+        showError('Please enter a valid budget amount');
+        return;
+      }
+
+      state.isLoading = true;
+      closeModal();
+      render();
+
+      try {
+        const budgetConfig = {
+          id: 'config_weeklyBudget',
+          amount: amount
+        };
+        await storage.update(budgetConfig);
+        state.weeklyBudget = amount;
+        showToast('Budget saved!', 'success');
+      } catch (e) {
+        console.error(e);
+        showError('Failed to save budget');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+
+    function showAddExpenseModal(type) {
+      const typeLabel = type === 'grocery' ? 'Grocery Shopping' : 'Takeout/Dining Out';
+      const today = new Date();
+      const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
+      const todayStr = localDate.toISOString().split('T')[0];
+
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">${type === 'grocery' ? '🛒' : '🍔'} Log ${typeLabel}</h2>
+          
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Amount:</label>
+            <div class="flex items-center gap-2">
+              <span class="text-xl">$</span>
+              <input type="number" id="expenseAmount" 
+                     class="flex-1 px-3 py-2 border rounded" 
+                     min="0" step="0.01" placeholder="0.00" autofocus />
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Date:</label>
+            <input type="date" id="expenseDate" value="${todayStr}" 
+                   class="w-full px-3 py-2 border rounded" />
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Note (optional):</label>
+            <input type="text" id="expenseNote" 
+                   class="w-full px-3 py-2 border rounded" 
+                   placeholder="${type === 'grocery' ? 'e.g., Whole Foods' : 'e.g., Chipotle'}" />
+          </div>
+
+          <div class="flex gap-2 justify-end">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Cancel
+            </button>
+            <button onclick="saveExpense('${type}')" 
+                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+              Log Expense
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function saveExpense(type) {
+      const amount = parseFloat(document.getElementById('expenseAmount').value);
+      const date = document.getElementById('expenseDate').value;
+      const note = document.getElementById('expenseNote').value.trim();
+
+      if (isNaN(amount) || amount <= 0) {
+        showError('Please enter a valid amount');
+        return;
+      }
+
+      if (!date) {
+        showError('Please select a date');
+        return;
+      }
+
+      state.isLoading = true;
+      closeModal();
+      render();
+
+      try {
+        const expense = {
+          id: `expense_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          type: type,
+          amount: amount,
+          date: date,
+          note: note
+        };
+
+        await storage.create(expense);
+        showToast(`${type === 'grocery' ? 'Grocery' : 'Takeout'} expense logged!`, 'success');
+      } catch (e) {
+        console.error(e);
+        showError('Failed to save expense');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+
+    async function deleteExpense(expenseId) {
+      const expense = state.budgetExpenses.find(e => e.id === expenseId);
+      if (!expense) return;
+
+      state.isLoading = true;
+      render();
+
+      try {
+        await storage.delete(expense);
+        showToast('Expense deleted', 'success');
+      } catch (e) {
+        console.error(e);
+        showError('Failed to delete expense');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+
+    function getWeekExpenses(weekStartDate) {
+      const weekDates = getWeekDates(weekStartDate);
+      const expenses = state.budgetExpenses.filter(e => weekDates.includes(e.date));
+      
+      const grocery = expenses.filter(e => e.type === 'grocery').reduce((sum, e) => sum + e.amount, 0);
+      const takeout = expenses.filter(e => e.type === 'takeout').reduce((sum, e) => sum + e.amount, 0);
+      
+      return { grocery, takeout, total: grocery + takeout, expenses };
+    }
+    
 function setCurrentWeek() {
       const today = new Date();
       const sunday = new Date(today);
@@ -3214,7 +3386,7 @@ const today = new Date();
 
       return `
         <div class="p-6 max-w-7xl mx-auto">
-          <div class="flex items-center justify-between mb-6">
+       <div class="flex items-center justify-between mb-6">
             <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.5}px;">
               ${CONFIG.weekly_plan_label}
             </h2>
@@ -3224,6 +3396,124 @@ const today = new Date();
                 style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">This Week</button>
             </div>
           </div>
+
+          ${(() => {
+            const weekExpenses = getWeekExpenses(state.currentWeekStartDate);
+            const budget = state.weeklyBudget;
+            const percentSpent = (weekExpenses.total / budget) * 100;
+            const remaining = budget - weekExpenses.total;
+            const isOverBudget = remaining < 0;
+            
+            return `
+              <div class="mb-6 rounded-xl p-6" style="background: linear-gradient(135deg, ${CONFIG.surface_color} 0%, rgba(102, 126, 234, 0.1) 100%); border: 1px solid rgba(255,255,255,0.08);">
+                <div class="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 class="font-bold flex items-center gap-2" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.3}px;">
+                      💰 Weekly Budget
+                    </h3>
+                    <div style="color:${CONFIG.text_color}; opacity:0.7; font-size:${CONFIG.font_size * 0.9}px; margin-top:4px;">
+                      ${getWeekDates(state.currentWeekStartDate)[0]} - ${getWeekDates(state.currentWeekStartDate)[6]}
+                    </div>
+                  </div>
+                  <button type="button" onclick="showBudgetModal()"
+                    class="px-3 py-1.5 rounded button-hover"
+                    style="background:rgba(255,255,255,0.1); color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.85}px;">
+                    ⚙️ Edit Budget
+                  </button>
+                </div>
+
+                <!-- Budget Progress Bar -->
+                <div class="mb-4">
+                  <div class="flex justify-between items-end mb-2">
+                    <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 2}px; font-weight:bold;">
+                      $${weekExpenses.total.toFixed(2)}
+                    </div>
+                    <div style="color:${CONFIG.text_color}; opacity:0.8; font-size:${CONFIG.font_size * 1.1}px;">
+                      of $${budget.toFixed(2)}
+                    </div>
+                  </div>
+                  
+                  <div style="background:rgba(255,255,255,0.1); border-radius:12px; height:20px; overflow:hidden; position:relative;">
+                    <div style="background: ${isOverBudget ? 'linear-gradient(90deg, #dc2626, #ef4444)' : 'linear-gradient(90deg, #16a34a, #22c55e)'}; height:100%; width:${Math.min(percentSpent, 100)}%; transition: width 0.3s ease; border-radius:12px;"></div>
+                  </div>
+                  
+                  <div class="flex justify-between mt-2" style="font-size:${CONFIG.font_size * 0.9}px;">
+                    <div style="color:${isOverBudget ? '#ef4444' : '#22c55e'}; font-weight:600;">
+                      ${isOverBudget ? `Over by $${Math.abs(remaining).toFixed(2)}` : `$${remaining.toFixed(2)} remaining`}
+                    </div>
+                    <div style="color:${CONFIG.text_color}; opacity:0.7;">
+                      ${percentSpent.toFixed(0)}% spent
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Breakdown -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                  <div class="rounded-lg p-3" style="background:rgba(255,255,255,0.05);">
+                    <div style="color:${CONFIG.text_color}; opacity:0.7; font-size:${CONFIG.font_size * 0.85}px; margin-bottom:4px;">
+                      🛒 Groceries
+                    </div>
+                    <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.2}px; font-weight:600;">
+                      $${weekExpenses.grocery.toFixed(2)}
+                    </div>
+                  </div>
+                  <div class="rounded-lg p-3" style="background:rgba(255,255,255,0.05);">
+                    <div style="color:${CONFIG.text_color}; opacity:0.7; font-size:${CONFIG.font_size * 0.85}px; margin-bottom:4px;">
+                      🍔 Takeout
+                    </div>
+                    <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.2}px; font-weight:600;">
+                      $${weekExpenses.takeout.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quick Add Buttons -->
+                <div class="flex gap-2">
+                  <button type="button" onclick="showAddExpenseModal('grocery')"
+                    class="flex-1 px-4 py-2.5 rounded-lg button-hover"
+                    style="background:#16a34a; color:white; font-size:${CONFIG.font_size * 0.9}px; font-weight:600;">
+                    🛒 Log Grocery Trip
+                  </button>
+                  <button type="button" onclick="showAddExpenseModal('takeout')"
+                    class="flex-1 px-4 py-2.5 rounded-lg button-hover"
+                    style="background:#f59e0b; color:white; font-size:${CONFIG.font_size * 0.9}px; font-weight:600;">
+                    🍔 Log Takeout
+                  </button>
+                </div>
+
+                <!-- Recent Expenses -->
+                ${weekExpenses.expenses.length > 0 ? `
+                  <div class="mt-4 pt-4" style="border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="color:${CONFIG.text_color}; font-weight:600; margin-bottom:8px; font-size:${CONFIG.font_size * 0.9}px;">
+                      Recent Expenses
+                    </div>
+                    <div class="space-y-2 max-h-48 overflow-y-auto">
+                      ${weekExpenses.expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => `
+                        <div class="flex items-center justify-between p-2 rounded" style="background:rgba(255,255,255,0.03);">
+                          <div class="flex items-center gap-2 flex-1">
+                            <span style="font-size:1.2rem;">${exp.type === 'grocery' ? '🛒' : '🍔'}</span>
+                            <div style="flex:1; min-width:0;">
+                              <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.9}px; font-weight:600;">
+                                $${exp.amount.toFixed(2)}
+                              </div>
+                              <div style="color:${CONFIG.text_color}; opacity:0.6; font-size:${CONFIG.font_size * 0.75}px;">
+                                ${exp.note || (exp.type === 'grocery' ? 'Grocery shopping' : 'Takeout')} • ${exp.date}
+                              </div>
+                            </div>
+                          </div>
+                          <button type="button" onclick="if(confirm('Delete this expense?')) deleteExpense('${exp.id}')"
+                            class="px-2 py-1 rounded button-hover"
+                            style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.7}px;">
+                            Delete
+                          </button>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          })()}
 
           <div class="grid gap-4">
             ${dates.map(date => {
