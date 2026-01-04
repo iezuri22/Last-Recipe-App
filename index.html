@@ -647,6 +647,19 @@ currentWeekStartDate: (() => {
       return 'https://' + u;
     }
 
+    function recipeUrl(r) {
+      const u = (r?.recipe_url || '').trim();
+      if (!u) return '';
+      
+      // Handle both http and https
+      if (u.startsWith('http://') || u.startsWith('https://')) {
+        return u;
+      }
+      
+      // If no protocol, assume https
+      return 'https://' + u;
+    }
+
     function recipeIngList(r) {
       if (!r) return [];
       if (Array.isArray(r.ingredientsRows) && r.ingredientsRows.length) {
