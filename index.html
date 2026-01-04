@@ -3508,14 +3508,11 @@ const today = new Date();
                       <span>▶</span> Recent (${weekExpenses.expenses.length})
                     </summary>
                     <div class="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                     ${weekExpenses.expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(exp => 
-                        '<div class="flex items-center justify-between p-1.5 rounded" style="background:rgba(255,255,255,0.03); font-size:' + (CONFIG.font_size * 0.8) + 'px;">' +
-                          '<div class="flex items-center gap-2 flex-1 min-w-0">' +
-                            '<span>' + (exp.type === 'grocery' ? '🛒' : '🍔') + '</span>' +
-                            '<span style="color:' + CONFIG.text_color + '; font-weight:600;">$' + exp.amount.toFixed(0) + '</span>' +
-                            '<span style="color:' + CONFIG.text_color + '; opacity:0.6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + (exp.note || exp.date) + '</span>' +
-                          '</div>' +
-                          '<button type="button" onclick="if(confirm(\'Delete this expense?\')) deleteExpense(\'' + exp.id + '\')" style="color:#dc2626; font-size:' + (CONFIG.font_size * 0.7) + 'px; padding:2px 6px;">&times;</button>' +
+                    ${weekExpenses.expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5).map(exp => 
+                        '<div class="flex items-center gap-2 p-1.5 rounded" style="background:rgba(255,255,255,0.03); font-size:' + (CONFIG.font_size * 0.8) + 'px;">' +
+                          '<span>' + (exp.type === 'grocery' ? '🛒' : '🍔') + '</span>' +
+                          '<span style="color:' + CONFIG.text_color + '; font-weight:600;">$' + exp.amount.toFixed(0) + '</span>' +
+                          '<span style="color:' + CONFIG.text_color + '; opacity:0.6;">' + (exp.note || exp.date) + '</span>' +
                         '</div>'
                       ).join('')}
                     </div>
