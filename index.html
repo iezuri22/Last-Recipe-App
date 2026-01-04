@@ -3137,8 +3137,8 @@ ${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 T
               </div>
             ` : ''}
 
-            ${url ? `<div class="mt-4">
-              <a href="${esc(url)}" target="_blank" rel="noopener noreferrer"
+           ${recipeUrl(r) ? `<div class="mt-4">
+              <a href="${esc(recipeUrl(r))}" target="_blank" rel="noopener noreferrer"
                 style="color:${CONFIG.text_color}; text-decoration:underline; opacity:.9;">
                 Open recipe link →
               </a>
@@ -3254,7 +3254,7 @@ const today = new Date();
                               
                               return `
                                 <div class="flex-1" style="min-width: 0; max-width: 50%; background:rgba(255,255,255,0.05); border-radius:8px; padding:8px;">
-                                  <a href="${isExternal ? '#' : (r.recipe_url || '#')}" 
+                                  <a href="${isExternal ? '#' : (recipeUrl(r) || '#')}" 
                                      ${isExternal ? '' : 'target="_blank" rel="noopener noreferrer"'}
                                      ${isExternal ? 'onclick="return false;"' : ''}
                                      onclick="event.stopPropagation();"
