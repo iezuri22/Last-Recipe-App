@@ -3193,6 +3193,138 @@ ${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 T
           </div>
         </div>`;
     }
+function showManageExpensesModal() {
+      const expenses = state.budgetExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">💰 Manage Expenses</h2>
+          
+          ${expenses.length === 0 ? `
+            <div class="p-8 text-center text-gray-500">
+              No expenses logged yet
+            </div>
+          ` : `
+            <div class="max-h-96 overflow-y-auto space-y-2">
+              ${expenses.map(exp => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+                  <div class="flex items-center gap-3 flex-1">
+                    <span style="font-size:1.5rem;">${exp.type === 'grocery' ? '🛒' : '🍔'}</span>
+                    <div>
+                      <div class="font-semibold">$${exp.amount.toFixed(2)}</div>
+                      <div class="text-sm text-gray-600">${exp.date} • ${exp.note || (exp.type === 'grocery' ? 'Grocery shopping' : 'Takeout')}</div>
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="editExpense('${exp.id}')" 
+                            class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                      Edit
+                    </button>
+                    <button onclick="if(confirm('Delete this expense?')) deleteExpense('${exp.id}')" 
+                            class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+          
+          <div class="flex gap-2 justify-end mt-4">
+            <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Close
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    function editExpense(expenseId) {
+      const expense = state.budgetExpenses.find(e => e.id === expenseId);
+      if (!expense) return;
+
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">${expense.type === 'grocery' ? '🛒' : '🍔'} Edit Expense</h2>
+          
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Amount:</label>
+            <div class="flex items-center gap-2">
+              <span class="text-xl">$</span>
+              <input type="number" id="editExpenseAmount" value="${expense.amount}" 
+                     class="flex-1 px-3 py-2 border rounded" 
+                     min="0" step="0.01" />
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Date:</label>
+            <input type="date" id="editExpenseDate" value="${expense.date}" 
+                   class="w-full px-3 py-2 border rounded" />
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Note (optional):</label>
+            <input type="text" id="editExpenseNote" value="${expense.note || ''}" 
+                   class="w-full px-3 py-2 border rounded" 
+                   placeholder="${expense.type === 'grocery' ? 'e.g., Whole Foods' : 'e.g., Chipotle'}" />
+          </div>
+
+          <div class="flex gap-2 justify-end">
+            <button onclick="showManageExpensesModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+              Cancel
+            </button>
+            <button onclick="updateExpense('${expenseId}')" 
+                    class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+              Save Changes
+            </button>
+          </div>
+        </div>
+      `);
+    }
+
+    async function updateExpense(expenseId) {
+      const expense = state.budgetExpenses.find(e => e.id === expenseId);
+      if (!expense) return;
+
+      const amount = parseFloat(document.getElementById('editExpenseAmount').value);
+      const date = document.getElementById('editExpenseDate').value;
+      const note = document.getElementById('editExpenseNote').value.trim();
+
+      if (isNaN(amount) || amount <= 0) {
+        showError('Please enter a valid amount');
+        return;
+      }
+
+      if (!date) {
+        showError('Please select a date');
+        return;
+      }
+
+      state.isLoading = true;
+      closeModal();
+      render();
+
+      try {
+        const updatedExpense = {
+          ...expense,
+          amount: amount,
+          date: date,
+          note: note
+        };
+
+        await storage.update(updatedExpense);
+        showToast('Expense updated!', 'success');
+        showManageExpensesModal();
+      } catch (e) {
+        console.error(e);
+        showError('Failed to update expense');
+      } finally {
+        state.isLoading = false;
+        render();
+      }
+    }
+    
 function showBudgetModal() {
       openModal(`
         <div style="color: #1a1a2e;">
@@ -3443,11 +3575,18 @@ const today = new Date();
                   <h3 class="font-bold flex items-center gap-2" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.1}px;">
                     💰 Weekly Budget
                   </h3>
-                  <button type="button" onclick="showBudgetModal()"
-                    class="px-2 py-1 rounded button-hover"
-                    style="background:rgba(255,255,255,0.1); color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.75}px;">
-                    ⚙️ Edit
-                  </button>
+                 <div class="flex gap-1">
+                    <button type="button" onclick="showManageExpensesModal()"
+                      class="px-2 py-1 rounded button-hover"
+                      style="background:rgba(255,255,255,0.1); color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.75}px;">
+                      📋 Manage
+                    </button>
+                    <button type="button" onclick="showBudgetModal()"
+                      class="px-2 py-1 rounded button-hover"
+                      style="background:rgba(255,255,255,0.1); color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.75}px;">
+                      ⚙️ Edit
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Total Summary -->
