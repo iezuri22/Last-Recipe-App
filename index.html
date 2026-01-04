@@ -305,11 +305,10 @@ filterIngredientGroup: 'all',
   selectedGroceryRecipeId: null,
 currentWeekStartDate: (() => {
   const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-})(),      isLoading: false,
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - today.getDay());
+  return sunday.toISOString().split('T')[0];
+})(),     isLoading: false,
   selectedRecipeViewId: null,
   viewingFromPlan: null,
    scrollPositions: {}
@@ -991,17 +990,18 @@ currentWeekStartDate: (() => {
   navigateTo('recipes');
 }
 
- function openRecipeView(id, fromPlan = null, fromStats = false, fromTips = false) {
+function openRecipeView(id, fromPlan = null, fromStats = false, fromTips = false, fromMealOptions = false) {
   // Save scroll position before navigating
   const app = document.getElementById('app');
   if (app && state.currentView) {
     state.scrollPositions[state.currentView] = app.scrollTop;
   }
   
-  state.selectedRecipeViewId = id;
+ state.selectedRecipeViewId = id;
   state.viewingFromPlan = fromPlan; // {date, meal} or null
   state.viewingFromStats = fromStats; // true if coming from recipe-stats
   state.viewingFromTips = fromTips; // true if coming from tips page
+  state.viewingFromMealOptions = fromMealOptions; // true if coming from meal options
   state.currentView = 'recipe-view';
   render();
   
@@ -1106,11 +1106,13 @@ showToast(payload.isTip ? 'Tip saved!' : 'Recipe saved!', 'success');        clo
       }
     }
 
-  function markAsCooked(recipeId) {
+ function markAsCooked(recipeId) {
       const recipe = getRecipeById(recipeId);
       if (!recipe) return;
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
+      const todayStr = localDate.toISOString().split('T')[0];
 
       openModal(`
         <div style="color: #1a1a2e;">
@@ -1119,16 +1121,16 @@ showToast(payload.isTip ? 'Tip saved!' : 'Recipe saved!', 'success');        clo
           
           <div class="mb-4">
             <label class="block mb-2 font-semibold">Date:</label>
-            <input type="date" id="cookDate" value="${today}" 
-                   class="w-full px-3 py-2 border rounded" />
+<input type="date" id="cookDate" value="${todayStr}"
+class="w-full px-3 py-2 border rounded" />
           </div>
 
-          <div class="mb-4">
+         <div class="mb-4">
             <label class="block mb-2 font-semibold">Meal Type:</label>
             <select id="cookMealType" class="w-full px-3 py-2 border rounded">
-              <option value="breakfast">Breakfast</option>
-              <option value="lunch">Lunch</option>
-              <option value="dinner" selected>Dinner</option>
+              <option value="breakfast" ${recipe.category === 'Breakfast' ? 'selected' : ''}>Breakfast</option>
+              <option value="lunch" ${recipe.category === 'Lunch' ? 'selected' : ''}>Lunch</option>
+              <option value="dinner" ${(recipe.category === 'Dinner' || recipe.category === 'Vegetables' || !recipe.category) ? 'selected' : ''}>Dinner</option>
             </select>
           </div>
 
@@ -1702,11 +1704,12 @@ function navigateTo(view) {
     state.scrollPositions[state.currentView] = app.scrollTop;
   }
   
-  // Clear viewing flags when navigating
+ // Clear viewing flags when navigating
   if (view !== 'recipe-view') {
     state.viewingFromPlan = null;
     state.viewingFromStats = false;
     state.viewingFromTips = false;
+    state.viewingFromMealOptions = false;
   }
   
  state.currentView = view;
@@ -1900,27 +1903,25 @@ function navigateTo(view) {
                         
                         const img = recipeThumb(recipe);
                         
-                       return `
-                          <div style="min-width:150px; max-width:150px; background:${CONFIG.surface_color}; border:1px solid rgba(255,255,255,0.08); border-radius:12px; overflow:hidden; flex-shrink:0;"
+                    return `
+                          <div style="min-width:120px; max-width:120px; background:${CONFIG.surface_color}; border:1px solid rgba(255,255,255,0.08); border-radius:8px; overflow:hidden; flex-shrink:0;"
                                class="card-hover">
                             ${img ? `
-                              <div style="height:100px; overflow:hidden; cursor:pointer;" onclick="openRecipeView('${recipe.__backendId || recipe.id}')"><img src="${esc(img)}" style="width:100%; height:100%; object-fit:cover;" />
-                              </div>
-                            ` : `
-                              <div style="height:100px; background:rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer;"
-                                   onclick="openRecipeView('${recipe.__backendId || recipe.id}')">
+<div style="height:80px; overflow:hidden; cursor:pointer;" onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">                            ` : `
+<div style="height:80px; background:rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center; font-size:1.8rem; cursor:pointer;"
+                                   onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">
                                 🍽️
                               </div>
                             `}
                             
-                            <div style="padding:12px;">
-                              <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.95}px; font-weight:600; margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                ${esc(recipe.title)}
+                          <div style="padding:8px;">
+                              <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.85}px; font-weight:600; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                              ${esc(recipe.title)}
                               </div>
                               
-                              <button type="button" onclick="removeMealOption('${opt.id}')"
-                                class="w-full px-3 py-1.5 rounded button-hover"
-                                style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.85}px;">
+                            <button type="button" onclick="removeMealOption('${opt.id}')"
+                                class="w-full px-2 py-1 rounded button-hover"
+                                style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.75}px;">
                                 Remove
                               </button>
                             </div>
@@ -2988,7 +2989,7 @@ Step 3: Add wet ingredients..."
       return `
                   <div class="p-6 max-w-5xl mx-auto">
           <div class="flex items-center justify-between mb-4 mobile-stack gap-3">
-<button type="button" onclick="navigateTo('${state.viewingFromPlan ? 'weekly-plan' : (state.viewingFromStats ? 'recipe-stats' : (state.viewingFromTips ? 'tips' : 'recipes'))}')"
+<button type="button" onclick="navigateTo('${state.viewingFromPlan ? 'weekly-plan' : (state.viewingFromStats ? 'recipe-stats' : (state.viewingFromTips ? 'tips' : (state.viewingFromMealOptions ? 'meal-options' : 'recipes')))}')"
                 class="px-4 py-2 rounded button-hover"
                 style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">
                 ← Back
@@ -3113,10 +3114,28 @@ ${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 T
           </div>
         </div>`;
     }
-
-    function renderWeeklyPlan() {
-      const weekDates = getWeekDates(state.currentWeekStartDate);
-      const meals = ['Breakfast', 'Lunch', 'Dinner'];
+function setCurrentWeek() {
+      const today = new Date();
+      const sunday = new Date(today);
+      sunday.setDate(today.getDate() - today.getDay());
+      state.currentWeekStartDate = sunday.toISOString().split('T')[0];
+      render();
+    }
+   function renderWeeklyPlan() {
+      let dates = getWeekDates(state.currentWeekStartDate);
+      
+      // Find today's date
+const today = new Date();
+      const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
+      const todayStr = localDate.toISOString().split('T')[0];
+     const todayIndex = dates.indexOf(today);
+      
+      // If today is in the list, move it to the top
+      if (todayIndex > -1) {
+        const todayDate = dates.splice(todayIndex, 1)[0];
+        dates = [todayDate, ...dates];
+      }
+     const meals = ['Breakfast', 'Lunch', 'Dinner'];
 
       return `
         <div class="p-6 max-w-7xl mx-auto">
@@ -3124,16 +3143,15 @@ ${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 T
             <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.5}px;">
               ${CONFIG.weekly_plan_label}
             </h2>
-            <div class="flex gap-2">
-              <button type="button" onclick="changeWeek(-1)" class="px-4 py-2 rounded button-hover"
-                style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">← Previous</button>
-              <button type="button" onclick="changeWeek(1)" class="px-4 py-2 rounded button-hover"
-                style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size}px;">Next →</button>
+          <div class="flex gap-2">
+              <button type="button" onclick="setCurrentWeek()"
+                class="px-4 py-2 rounded button-hover"
+                style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">This Week</button>
             </div>
           </div>
 
           <div class="grid gap-4">
-            ${weekDates.map(date => {
+            ${dates.map(date => {
               const plan = state.planData.find(p => p.date === date);
               return `
               <div class="rounded p-4" style="background:${CONFIG.surface_color};">
@@ -3145,7 +3163,6 @@ ${r.isTip ? `<div style="color:#667eea; font-weight:600; margin-top:8px;">📝 T
                     const key = meal.toLowerCase();
                     const recipeIds = plan ? (plan[key] || []) : [];
                     const hasRecipes = recipeIds.length > 0;
-                    const canAddMore = recipeIds.length < 2;
 
                     return `
                       <div class="p-3 rounded" style="background:rgba(255,255,255,0.03);">
