@@ -3515,8 +3515,8 @@ const today = new Date();
                             <span style="color:${CONFIG.text_color}; font-weight:600;">$${exp.amount.toFixed(0)}</span>
                             <span style="color:${CONFIG.text_color}; opacity:0.6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${exp.note || exp.date}</span>
                           </div>
-                          <button type="button" onclick="if(confirm('Delete?')) deleteExpense('${exp.id}')"
-                            style="color:#dc2626; font-size:${CONFIG.font_size * 0.7}px; padding:2px 6px;">
+<button type="button" onclick="if(confirm(\`Delete this expense?\`)) deleteExpense(\`${exp.id}\`)"
+style="color:#dc2626; font-size:${CONFIG.font_size * 0.7}px; padding:2px 6px;">
                             ×
                           </button>
                         </div>
