@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meal Planner</title>
-  <!-- Test image in head to verify loading -->
+<title>Meal Planner</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>" />  <!-- Test image in head to verify loading -->
   <script>
     // Test if we can load external images
     const testImg = new Image();
@@ -257,7 +257,19 @@
     <div id="modal-content" class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto"></div>
   </div>
 
-  <script>
+ <script>
+    // Supabase setup
+    const SUPABASE_URL = 'https://blqbxduxgimarrhgyfgn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJscWJ4ZHV4Z2ltYXJyaGd5ZmduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NjgyNDcsImV4cCI6MjA4MzE0NDI0N30.iNrBLJLSQEUEV24VCnhrMPTTJ6A_0rIuSAOinuFd-vM';
+  // Load Supabase library
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.js';
+    script.onload = () => {
+      window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      console.log('✅ Supabase loaded', window.supabaseClient);
+    };
+    document.head.appendChild(script);
+
     // ===== CONFIG & STATE =====
     const CONFIG = {
       background_color: "#0f0f23",
@@ -280,85 +292,177 @@ const MEAL_CATEGORIES = ['Breakfast', 'Lunch', 'Vegetables', 'Dinner', 'Appetize
     const SOURCE_TYPES = ['user', 'chefiq'];
     const STORAGE_KEY = 'meal_planner_data_v1';
 
-  // State
-
+// State
     const state = {
   recipes: [],
+  mealSelections: [],
+  mealOptions: [],
   planData: [],
- mealSelections: [],
   groceryItems: [],
- mealOptions: [],
- budgetExpenses: [], // {id, date, type: 'grocery'|'takeout', amount, note}
-  weeklyBudget: 200, // Default $200/week (deprecated, kept for migration)
-  groceryBudget: 150, // Default $150/week for groceries
-  takeoutBudget: 50, // Default $50/week for takeout
-  externalMealTypes: ['Eating Out', 'Takeout/Delivery', 'Leftovers', 'At Family/Friends', 'Work Lunch', 'Meal Prep'], selectedDayForRecipe: null,
+  budgetExpenses: [],
+  weeklyBudget: 200,
+  groceryBudget: 150,
+  takeoutBudget: 50,
+  externalMealTypes: ['Eating Out', 'Takeout/Delivery', 'Leftovers', 'At Family/Friends', 'Work Lunch', 'Meal Prep'],
+  selectedDayForRecipe: null,
   selectedMealForRecipe: null,
   selectedCategory: 'All',
   searchTerm: '',
   recipePickerSearchTerm: '',
   filterFavorites: false,
-  filterUserCreated: false,  // ← ADD THIS LINE
+  filterUserCreated: false,
   filterSourceType: 'all',
-filterIngredientGroup: 'all',
+  filterIngredientGroup: 'all',
   showTips: false,
+  showRecipesOrTips: 'recipes',
   selectedGroceryDate: null,
   selectedGroceryMeal: null,
   selectedGroceryRecipeId: null,
-  groceryViewMode: 'all', // 'all' or 'by-meal'
-currentWeekStartDate: (() => {
-  const today = new Date();
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay());
-  return sunday.toISOString().split('T')[0];
-})(),     isLoading: false,
+  groceryViewMode: 'all',
+  currentWeekStartDate: (() => {
+    const today = new Date();
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay());
+    return sunday.toISOString().split('T')[0];
+  })(),
+  isLoading: false,
   selectedRecipeViewId: null,
   viewingFromPlan: null,
-   scrollPositions: {}
+  scrollPositions: {}
 };
-    // ===== STORAGE SDK =====
     const storage = {
-      load() {
-        try {
-          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        } catch {
-          return [];
-        }
-      },
-
-      save(data) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      },
-
-      _data: [],
-      _handler: null,
-
       async init(handler) {
-        this._data = this.load();
         this._handler = handler;
-        handler.onDataChanged(this._data);
+        
+        // Wait for Supabase to load
+        const checkSupabase = setInterval(async () => {
+          if (window.supabaseClient) {
+            clearInterval(checkSupabase);
+            
+            // Check if user is logged in
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            
+            if (!user) {
+              // Not logged in - show login
+              showLoginModal();
+            } else {
+              // Logged in - load data
+              await this.loadData();
+              
+              // Subscribe to real-time changes
+              this.subscribeToChanges(user.id);
+            }
+          }
+        }, 100);
+        
         return { isOk: true };
       },
 
+     subscribeToChanges(userId) {
+        // Listen for any changes to your data
+        const channel = window.supabaseClient
+          .channel('meal_planner_changes')
+          .on('postgres_changes', 
+            { 
+              event: '*', // Listen to INSERT, UPDATE, DELETE
+              schema: 'public', 
+              table: 'meal_planner_data',
+              filter: `user_id=eq.${userId}`
+            }, 
+            (payload) => {
+              console.log('Real-time change detected:', payload);
+              // Reload data when any change happens
+              this.loadData();
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Real-time subscribed');
+            }
+            if (status === 'CHANNEL_ERROR') {
+              console.log('⚠️ Real-time error - continuing without live sync');
+            }
+          });
+      },
+
+    async loadData() {
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        if (!user) return;
+
+        // Update user indicator
+        updateUserIndicator(user.email);
+
+        const { data, error } = await window.supabaseClient
+          .from('meal_planner_data')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Load error:', error);
+          this._handler?.onDataChanged([]);
+          return;
+        }
+
+        const items = data.map(row => ({ id: row.id, ...row.data }));
+        this._handler?.onDataChanged(items);
+      },
+
       async create(item) {
-        this._data.push(item);
-        this.save(this._data);
-        this._handler?.onDataChanged(this._data);
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        if (!user) return { isOk: false };
+
+        const { error } = await window.supabaseClient
+          .from('meal_planner_data')
+          .insert({
+            id: item.id,
+            user_id: user.id,
+            data: item
+          });
+
+        if (error) {
+          console.error('Create error:', error);
+          return { isOk: false };
+        }
+
+        await this.loadData();
         return { isOk: true };
       },
 
       async update(item) {
-        const idx = this._data.findIndex(d => d.id === item.id);
-        if (idx !== -1) this._data[idx] = item;
-        this.save(this._data);
-        this._handler?.onDataChanged(this._data);
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        if (!user) return { isOk: false };
+
+        const { error } = await window.supabaseClient
+          .from('meal_planner_data')
+          .update({ data: item })
+          .eq('id', item.id)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Update error:', error);
+          return { isOk: false };
+        }
+
+        await this.loadData();
         return { isOk: true };
       },
 
       async delete(item) {
-        this._data = this._data.filter(d => d.id !== item.id);
-        this.save(this._data);
-        this._handler?.onDataChanged(this._data);
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        if (!user) return { isOk: false };
+
+        const { error } = await window.supabaseClient
+          .from('meal_planner_data')
+          .delete()
+          .eq('id', item.id)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Delete error:', error);
+          return { isOk: false };
+        }
+
+        await this.loadData();
         return { isOk: true };
       }
     };
@@ -382,24 +486,9 @@ currentWeekStartDate: (() => {
 
    function getWeekDates(startDate) {
   const dates = [];
-  const start = new Date(startDate);
+  const start = new Date(startDate + 'T00:00:00');
   
-  // Check if we should include yesterday
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  
-  const startDateObj = new Date(start);
-  const daysDiff = Math.floor((startDateObj - yesterday) / (1000 * 60 * 60 * 24));
-  
-  // If start date is today and yesterday is within this week, include it
-  const shouldIncludeYesterday = daysDiff === 1;
-  
-  if (shouldIncludeYesterday) {
-    dates.push(yesterday.toISOString().split('T')[0]);
-  }
-  
-  // Get the next 7 days from start date
+  // Get exactly 7 days starting from startDate (Sunday)
   for (let i = 0; i < 7; i++) {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
@@ -534,6 +623,162 @@ currentWeekStartDate: (() => {
       
       reader.readAsText(file);
     }
+   function showLoginModal() {
+      openModal(`
+        <div style="color: #1a1a2e;">
+          <h2 class="text-2xl font-bold mb-4">🍽️ Welcome to Meal Planner</h2>
+          <p class="mb-4">Sign in to sync your recipes across all your devices</p>
+          
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Email:</label>
+            <input type="email" id="loginEmail" class="w-full px-3 py-2 border rounded" placeholder="your@email.com" />
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold">Password:</label>
+            <input type="password" id="loginPassword" class="w-full px-3 py-2 border rounded" placeholder="••••••••" />
+          </div>
+
+          <div class="flex gap-2 justify-end">
+            <button onclick="handleLogin()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              Sign In
+            </button>
+            <button onclick="handleSignup()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+              Sign Up
+            </button>
+          </div>
+
+          <div class="mt-4 text-sm text-gray-600 text-center">
+            Your data will be synced to the cloud
+          </div>
+        </div>
+      `);
+    }
+
+   async function handleLogin() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      if (!email || !password) {
+        showError('Please enter email and password');
+        return;
+      }
+
+      const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (error) {
+        showError('Login failed: ' + error.message);
+        return;
+      }
+
+      closeModal();
+      showToast('Logged in successfully!', 'success');
+      
+      // Migrate localStorage data to Supabase
+      await migrateLocalStorageToSupabase();
+      
+      await storage.loadData();
+    }
+
+    async function migrateLocalStorageToSupabase() {
+      const STORAGE_KEY = 'meal_planner_data_v1';
+      const localData = localStorage.getItem(STORAGE_KEY);
+      
+      if (!localData) {
+        console.log('No local data to migrate');
+        return;
+      }
+
+      try {
+        const items = JSON.parse(localData);
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        
+        if (!user || items.length === 0) return;
+
+        showToast('Migrating your data to cloud...', 'info');
+
+        // Upload each item to Supabase
+        for (const item of items) {
+          await window.supabaseClient
+            .from('meal_planner_data')
+            .insert({
+              id: item.id,
+              user_id: user.id,
+              data: item
+            });
+        }
+
+        showToast(`Migrated ${items.length} items to cloud!`, 'success');
+        
+        // Clear localStorage after successful migration
+        localStorage.removeItem(STORAGE_KEY);
+        console.log('Migration complete, localStorage cleared');
+        
+      } catch (e) {
+        console.error('Migration error:', e);
+        showError('Failed to migrate data. Please try again.');
+      }
+    }
+
+    async function handleSignup() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      if (!email || !password) {
+        showError('Please enter email and password');
+        return;
+      }
+
+      if (password.length < 6) {
+        showError('Password must be at least 6 characters');
+        return;
+      }
+
+      const { data, error } = await window.supabaseClient.auth.signUp({
+        email: email,
+        password: password
+      });
+
+      if (error) {
+        showError('Signup failed: ' + error.message);
+        return;
+      }
+
+      closeModal();
+      showToast('Account created! Check your email to verify.', 'success');
+      showLoginModal();
+    }
+
+    async function handleLogout() {
+      await window.supabaseClient.auth.signOut();
+      showToast('Logged out', 'success');
+      location.reload();
+    }
+
+  function updateUserIndicator(email) {
+      if (!email) return;
+      
+      const displayEmail = email.substring(0, 4) + '...';
+      
+      // Desktop indicator
+      const indicator = document.getElementById('userIndicator');
+      const emailSpan = document.getElementById('userEmail');
+      if (indicator && emailSpan) {
+        emailSpan.textContent = displayEmail;
+        indicator.style.display = 'block';
+      }
+      
+      // Mobile indicator
+      const indicatorMobile = document.getElementById('userIndicatorMobile');
+      const emailSpanMobile = document.getElementById('userEmailMobile');
+      if (indicatorMobile && emailSpanMobile) {
+        emailSpanMobile.textContent = displayEmail;
+        indicatorMobile.style.display = 'block';
+      }
+    }
 
     function showClearDataModal() {
       openModal(`
@@ -627,16 +872,17 @@ currentWeekStartDate: (() => {
       });
     }
 
-    // ===== RECIPE HELPERS =====
+  // ===== RECIPE HELPERS =====
     function getRecipeById(id) {
-      if (id && id.startsWith('external_')) {
+      if (!id) return null;
+      if (id.startsWith('external_')) {
         // Load external meal from storage
-        const externalMeals = storage._data.filter(d => d.type === 'external');
+        const externalMeals = (storage._data || []).filter(d => d.type === 'external');
         return externalMeals.find(m => m.id === id);
       }
+      if (!state.recipes || !Array.isArray(state.recipes)) return null;
       return state.recipes.find(r => r.__backendId === id || r.id === id);
     }
-
     function recipeThumb(r) {
       const u = (r?.image_url || '').trim();
       if (!u) return '';
@@ -1406,7 +1652,7 @@ function getPlannedMealsForWeek(weekStart) {
     }
     function getGroceryList() {
       const aggregated = {};
-
+      if (!state.mealSelections || !Array.isArray(state.mealSelections)) return [];
       state.mealSelections.forEach(sel => {
         const parts = sel.id.split('_');
         const date = parts[1];
@@ -1789,7 +2035,16 @@ function navigateTo(view) {
                       class="button-hover px-3 py-2 rounded-lg ${state.currentView && state.currentView.includes('grocery') ? 'glass' : ''}">
                 🛒 ${CONFIG.grocery_list_label}
               </button>
-              <button type="button" onclick="showSettingsMenu()"
+            <div id="userIndicator" style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 0.85}px; padding: 6px 12px; background: rgba(102, 126, 234, 0.2); border-radius: 8px; display: none;">
+                <span id="userEmail"></span>
+              </div>
+              <button type="button" onclick="storage.loadData(); showToast('Refreshed!', 'success');"
+                      style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size * 1.3}px;"
+                      class="button-hover p-2 rounded-lg hover:glass"
+                      title="Refresh Data">
+                🔄
+              </button>
+             <button type="button" onclick="showSettingsMenu()"
                       style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size * 1.3}px;"
                       class="button-hover p-2 rounded-lg hover:glass"
                       title="Settings & Export/Import">
@@ -1797,8 +2052,17 @@ function navigateTo(view) {
               </button>
             </div>
 
-            <!-- Mobile: Dropdown menu -->
+           <!-- Mobile: Dropdown menu -->
             <div class="lg:hidden flex gap-2 items-center">
+             <div id="userIndicatorMobile" style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 0.75}px; padding: 4px 8px; background: rgba(102, 126, 234, 0.2); border-radius: 6px; display: none;">
+                <span id="userEmailMobile"></span>
+              </div>
+              <button type="button" onclick="storage.loadData(); showToast('Refreshed!', 'success');"
+                      style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size * 1.3}px;"
+                      class="button-hover p-2 rounded-lg hover:glass"
+                      title="Refresh">
+                🔄
+              </button>
               <select onchange="navigateTo(this.value); this.blur();"
                       style="background: ${CONFIG.surface_color}; color: ${CONFIG.text_color}; border: 1px solid ${CONFIG.primary_action_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size}px; padding: 8px 12px; border-radius: 8px;">
                 <option value="recipes" ${state.currentView === 'recipes' ? 'selected' : ''}>📚 ${CONFIG.recipes_label}</option>
@@ -1808,10 +2072,19 @@ function navigateTo(view) {
                 <option value="recipe-stats" ${state.currentView === 'recipe-stats' ? 'selected' : ''}>👨‍🍳 Most Cooked</option>
                 <option value="grocery-list" ${state.currentView && state.currentView.includes('grocery') ? 'selected' : ''}>🛒 ${CONFIG.grocery_list_label}</option>
               </select>
-              <button type="button" onclick="showSettingsMenu()"
+           <div id="userIndicator" style="color: ${CONFIG.text_color}; font-size: ${CONFIG.font_size * 0.85}px; padding: 6px 12px; background: rgba(102, 126, 234, 0.2); border-radius: 8px; display: none;">
+                <span id="userEmail"></span>
+              </div>
+              <button type="button" onclick="storage.loadData(); showToast('Refreshed!', 'success');"
                       style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size * 1.3}px;"
                       class="button-hover p-2 rounded-lg hover:glass"
-                      title="Settings">
+                      title="Refresh Data">
+                🔄
+              </button>
+             <button type="button" onclick="showSettingsMenu()"
+                      style="color: ${CONFIG.text_color}; font-family: ${CONFIG.font_family}; font-size: ${CONFIG.font_size * 1.3}px;"
+                      class="button-hover p-2 rounded-lg hover:glass"
+                      title="Settings & Export/Import">
                 ⚙️
               </button>
             </div>
@@ -1947,27 +2220,27 @@ function navigateTo(view) {
                           const img = recipeThumb(recipe);
                           
                           return `
-                            <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px; flex:1; min-width:250px;">
+                            <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:8px; flex:1; min-width:250px;">
                               ${img ? `
-                                <div style="width:60px; height:60px; flex-shrink:0; border-radius:8px; overflow:hidden; cursor:pointer;" onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">
+                                <div style="width:40px; height:40px; flex-shrink:0; border-radius:6px; overflow:hidden; cursor:pointer;" onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">
                                   <img src="${esc(img)}" style="width:100%; height:100%; object-fit:cover;" />
                                 </div>
                               ` : `
-                                <div style="width:60px; height:60px; flex-shrink:0; border-radius:8px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; font-size:2rem; cursor:pointer;"
+                                <div style="width:40px; height:40px; flex-shrink:0; border-radius:6px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; font-size:1.2rem; cursor:pointer;"
                                      onclick="openRecipeView('${recipe.__backendId || recipe.id}', null, false, false, true)">
                                   🍽️
                                 </div>
                               `}
                               
                               <div style="flex:1; min-width:0;">
-                                <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.95}px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                <div style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.9}px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                                   ${esc(recipe.title)}
                                 </div>
                               </div>
                               
                               <button type="button" onclick="removeMealOption('${opt.id}')"
-                                class="px-3 py-2 rounded button-hover flex-shrink-0"
-                                style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.85}px;">
+                                class="px-2 py-1 rounded button-hover flex-shrink-0"
+                                style="background:#dc2626; color:white; font-size:${CONFIG.font_size * 0.75}px;">
                                 Remove
                               </button>
                             </div>
@@ -2316,10 +2589,18 @@ function navigateTo(view) {
 }
           
 
-    function showSettingsMenu() {
+   async function showSettingsMenu() {
+      const { data: { user } } = await window.supabaseClient.auth.getUser();
+      const userEmail = user ? user.email : 'Not logged in';
+      
       openModal(`
         <div style="color: #1a1a2e;">
           <h2 class="text-2xl font-bold mb-4">Settings & Data Management</h2>
+          
+          <div class="mb-4 p-3 bg-blue-50 rounded">
+            <div class="text-sm font-semibold">Logged in as:</div>
+            <div class="text-lg">${userEmail}</div>
+          </div>
           
           <div class="space-y-3">
             <button onclick="exportData(); closeModal();" 
@@ -2349,7 +2630,7 @@ function navigateTo(view) {
             </button>
           </div>
 
-          <div class="mt-6 p-4 bg-gray-100 rounded">
+         <div class="mt-6 p-4 bg-gray-100 rounded">
             <div class="text-sm text-gray-700">
               <div class="font-semibold mb-2">📊 Current Data:</div>
               <div>Recipes: ${state.recipes.length}</div>
@@ -2357,6 +2638,12 @@ function navigateTo(view) {
               <div>Grocery Items: ${state.groceryItems.length}</div>
             </div>
           </div>
+
+          <button onclick="closeModal(); handleLogout();" 
+                  class="w-full p-4 bg-red-100 hover:bg-red-200 rounded text-left mt-3">
+            <div class="font-semibold text-lg text-red-700">🚪 Logout</div>
+            <div class="text-sm text-red-600">Sign out of your account</div>
+          </button>
 
           <div class="flex gap-2 justify-end mt-6">
             <button onclick="closeModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
@@ -3518,8 +3805,11 @@ function showBudgetModal() {
       }
     }
 
-    function getWeekExpenses(weekStartDate) {
+   function getWeekExpenses(weekStartDate) {
       const weekDates = getWeekDates(weekStartDate);
+      if (!state.budgetExpenses || !Array.isArray(state.budgetExpenses)) {
+        return { grocery: 0, takeout: 0, total: 0, expenses: [] };
+      }
       const expenses = state.budgetExpenses.filter(e => weekDates.includes(e.date));
       
       const grocery = expenses.filter(e => e.type === 'grocery').reduce((sum, e) => sum + e.amount, 0);
@@ -3536,19 +3826,7 @@ function setCurrentWeek() {
       render();
     }
    function renderWeeklyPlan() {
-      let dates = getWeekDates(state.currentWeekStartDate);
-      
-      // Find today's date
-const today = new Date();
-      const localDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000));
-      const todayStr = localDate.toISOString().split('T')[0];
-     const todayIndex = dates.indexOf(today);
-      
-      // If today is in the list, move it to the top
-      if (todayIndex > -1) {
-        const todayDate = dates.splice(todayIndex, 1)[0];
-        dates = [todayDate, ...dates];
-      }
+      const dates = getWeekDates(state.currentWeekStartDate);
      const meals = ['Breakfast', 'Lunch', 'Dinner'];
 
       return `
@@ -3557,16 +3835,16 @@ const today = new Date();
             <h2 class="font-bold" style="color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 1.5}px;">
               ${CONFIG.weekly_plan_label}
             </h2>
-         <div class="flex gap-2">
+         <div class="flex gap-1">
               <button type="button" onclick="changeWeek(-1)"
-                class="px-3 py-2 rounded button-hover"
-                style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">← Prev</button>
+                class="px-2 py-1 rounded button-hover"
+                style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.85}px;">← Prev</button>
               <button type="button" onclick="setCurrentWeek()"
-                class="px-3 py-2 rounded button-hover"
-                style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color};">This Week</button>
+                class="px-2 py-1 rounded button-hover"
+                style="background:${CONFIG.primary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.85}px;">This Week</button>
               <button type="button" onclick="changeWeek(1)"
-                class="px-3 py-2 rounded button-hover"
-                style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color};">Next →</button>
+                class="px-2 py-1 rounded button-hover"
+                style="background:${CONFIG.secondary_action_color}; color:${CONFIG.text_color}; font-size:${CONFIG.font_size * 0.85}px;">Next →</button>
             </div>
           </div>
 
@@ -3647,15 +3925,15 @@ const today = new Date();
                 </div>
 
                 <!-- Quick Add Buttons -->
-                <div class="flex gap-2">
+              <div class="flex gap-1">
                   <button type="button" onclick="showAddExpenseModal('grocery')"
-                    class="flex-1 px-3 py-1.5 rounded-lg button-hover"
-                    style="background:#16a34a; color:white; font-size:${CONFIG.font_size * 0.8}px; font-weight:600;">
+                    class="flex-1 px-2 py-1 rounded button-hover"
+                    style="background:#16a34a; color:white; font-size:${CONFIG.font_size * 0.75}px; font-weight:600;">
                     + Grocery
                   </button>
                   <button type="button" onclick="showAddExpenseModal('takeout')"
-                    class="flex-1 px-3 py-1.5 rounded-lg button-hover"
-                    style="background:#f59e0b; color:white; font-size:${CONFIG.font_size * 0.8}px; font-weight:600;">
+                    class="flex-1 px-2 py-1 rounded button-hover"
+                    style="background:#f59e0b; color:white; font-size:${CONFIG.font_size * 0.75}px; font-weight:600;">
                     + Takeout
                   </button>
                 </div>
@@ -3738,15 +4016,15 @@ const today = new Date();
                           </div>
                         `}
                         
-                     <div class="flex gap-2">
+                     <div class="flex gap-1">
                           <button type="button" onclick="event.stopPropagation(); openRecipePicker('${date}','${meal}')"
-                            class="px-3 py-1 rounded button-hover"
-                            style="background:${CONFIG.primary_action_color};color:${CONFIG.text_color};font-size:${CONFIG.font_size * .85}px;">
+                            class="px-2 py-1 rounded button-hover"
+                            style="background:${CONFIG.primary_action_color};color:${CONFIG.text_color};font-size:${CONFIG.font_size * .75}px;">
                             ${hasRecipes ? '+ Add Another' : 'Add Recipe'}
                           </button>
                           <button type="button" onclick="event.stopPropagation(); openExternalMealPicker('${date}','${meal}')"
-                            class="px-3 py-1 rounded button-hover"
-                            style="background:${CONFIG.secondary_action_color};color:${CONFIG.text_color};font-size:${CONFIG.font_size * .85}px;">
+                            class="px-2 py-1 rounded button-hover"
+                            style="background:${CONFIG.secondary_action_color};color:${CONFIG.text_color};font-size:${CONFIG.font_size * .75}px;">
                             External
                           </button>
                         </div>
